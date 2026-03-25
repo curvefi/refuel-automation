@@ -220,7 +220,7 @@
     <main>
       <header>
         <div>
-          <h1>Refule Streamer</h1>
+          <h1>Refuel Streamer</h1>
           <p>Create a stream that automatically refuels a pool on a recurring basis.</p>
         </div>
         <div class="actions">
@@ -233,8 +233,8 @@
       <section class="panel">
         <div class="grid two">
           <label>
-            RefuleStreamer Address
-            <input id="streamer" placeholder="0xRefuleStreamer" />
+            RefuelStreamer Address
+            <input id="streamer" placeholder="0xRefuelStreamer" />
           </label>
           <label>
             Pool Address
@@ -584,7 +584,7 @@
         }
         const streamer = ui.streamer.value.trim();
         if (!ethers.utils.isAddress(streamer)) {
-          setStatus("Enter a RefuleStreamer address.");
+          setStatus("Enter a RefuelStreamer address.");
           return;
         }
         if (!coin.address) {
@@ -658,7 +658,7 @@
         }
         const streamerAddress = ui.streamer.value.trim();
         if (!ethers.utils.isAddress(streamerAddress)) {
-          setStatus("Enter a RefuleStreamer address.");
+          setStatus("Enter a RefuelStreamer address.");
           return;
         }
 
@@ -745,7 +745,7 @@
         }
         const streamerAddress = ui.streamer.value.trim();
         if (!ethers.utils.isAddress(streamerAddress)) {
-          setStatus("Enter a RefuleStreamer address.");
+          setStatus("Enter a RefuelStreamer address.");
           return;
         }
         const pool = ui.pool.value.trim();
