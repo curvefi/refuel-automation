@@ -1,24 +1,22 @@
 import os
 
-from eth_account import Account
-from eth_utils import keccak, to_bytes, to_checksum_address
-
 import boa
 from boa.explorer import Etherscan
-
+from eth_account import Account
+from eth_utils import keccak, to_bytes, to_checksum_address
 from secure_key_utils import decrypt_private_key, getpass
 
-
 CREATE_X_ADDRESS = "0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed"
-RPC_URL = "https://eth.drpc.org"
-
+DEFAULT_DRPC_BASE_URL = "https://lb.drpc.org/ogrpc"
+DEFAULT_DRPC_NETWORK = "polygon"
 CONTRACT_NAME = "DonationStreamer"
 CONTRACT_PATH = "contracts/DonationStreamer.vy"
 SALT_SEED_TEXT = "DonationStreamer:v0.1.0"
 
-CONTRACT_NAME = "StreamExecutor"
-CONTRACT_PATH = "contracts/StreamExecutor.vy"
-SALT_SEED_TEXT = "StreamExecutor:v0.1.0"
+# CONTRACT_NAME = "StreamExecutor"
+# CONTRACT_PATH = "contracts/StreamExecutor.vy"
+# SALT_SEED_TEXT = "StreamExecutor:v0.1.0"
+
 
 def _guarded_salt(deployer: str, chain_id: int, salt: bytes) -> bytes:
     sender = bytes.fromhex(deployer[2:])
@@ -40,6 +38,19 @@ def _guarded_salt(deployer: str, chain_id: int, salt: bytes) -> bytes:
     return keccak(salt)
 
 
+def _resolve_rpc_url() -> str:
+    rpc_url = os.environ.get("RPC_URL")
+    if rpc_url:
+        return rpc_url
+
+    dkey = os.environ.get("DRPC_API_KEY")
+    if not dkey:
+        raise ValueError("RPC_URL or DRPC_API_KEY is required")
+
+    network = os.environ.get("DRPC_NETWORK") or DEFAULT_DRPC_NETWORK
+    return f"{DEFAULT_DRPC_BASE_URL}?network={network}&dkey={dkey}"
+
+
 def main() -> None:
     api_key = os.environ.get("ETHERSCAN_API_KEY")
     if not api_key:
@@ -49,12 +60,13 @@ def main() -> None:
     if not encrypted_key:
         raise ValueError("ENCRYPTED_PK is required")
 
+    rpc_url = _resolve_rpc_url()
     private_key = decrypt_private_key(encrypted_key, getpass())
     deployer = Account.from_key(private_key)
     print(f"Deployer: {deployer.address}")
     deploycode = boa.load_partial(CONTRACT_PATH).compiler_data.bytecode
 
-    boa.set_network_env(RPC_URL)
+    boa.set_network_env(rpc_url)
     boa.env.add_account(deployer)
     boa.env.eoa = deployer.address
     chain_id = boa.env.evm.patch.chain_id
@@ -94,7 +106,7 @@ def main() -> None:
 
     contract = boa.load_partial(CONTRACT_PATH).at(address)
     contract.ctor_calldata = b""
-    verifier = Etherscan(etherscan_url+f"?chainid={chain_id}", api_key)
+    verifier = Etherscan(etherscan_url + f"?chainid={chain_id}", api_key)
     boa.verify(contract, verifier=verifier)
 
     print(f"Deployed {CONTRACT_NAME} at {checksum}")
