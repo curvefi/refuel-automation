@@ -40,6 +40,12 @@ CHAINS = {
         "explorer": "https://basescan.org",
         "min_balance": 0.0001,  # ETH one call ~ 0.00002 ETH
     },
+    "polygon": {
+        "chain_id": 137,
+        "alchemy_network": "polygon",
+        "explorer": "https://polygonscan.com",
+        "min_balance": 0.5,  # POL
+    },
 }
 
 
