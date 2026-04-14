@@ -11,7 +11,7 @@ on:
         type: boolean
         default: true
       chains:
-        description: "Chains to refuel (comma-separated: gnosis,ethereum,base or all)"
+        description: "Chains to refuel (comma-separated: gnosis,ethereum,base,polygon or all)"
         type: string
         default: "all"
 
