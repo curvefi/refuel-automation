@@ -178,13 +178,26 @@ def main():
             results[chain] = None
             continue
 
-        try:
-            success, balance = execute_refuel(chain, rpc_url, private_key, args.dry_run)
-            results[chain] = success
-            balances[chain] = balance
-        except Exception as e:
-            print(f"\nERROR on {chain}: {e}")
-            results[chain] = False
+        for attempt in range(3):
+            try:
+                success, balance = execute_refuel(chain, rpc_url, private_key, args.dry_run)
+                results[chain] = success
+                balances[chain] = balance
+                break
+            except Exception as e:
+                msg = str(e)
+                transient = (
+                    "header not found" in msg
+                    or "timeout" in msg.lower()
+                    or "-32603" in msg
+                )
+                if transient and attempt < 2:
+                    print(f"\nTransient RPC error on {chain} (attempt {attempt+1}/3): {e}")
+                    time.sleep(5 * (attempt + 1))
+                    continue
+                print(f"\nERROR on {chain}: {e}")
+                results[chain] = False
+                break
 
     print("\n" + "=" * 60)
     print("SUMMARY")
