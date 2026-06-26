@@ -12,7 +12,7 @@ dependencies = [
     "titanoboa==0.2.8",
     "keyring>=25.6.0",
     "base58>=2.1.1",
-    "cryptography>=45.0.5",
+    "cryptography>=48.0.1",
 ]
 
 [tool.uv]
