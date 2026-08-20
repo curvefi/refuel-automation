@@ -1,0 +1,3 @@
+[submodule "contracts/modules/chainlink"]
+	path = contracts/modules/chainlink
+	url = https://github.com/curvefi/Chainlink-vyper.git

@@ -54,3 +54,10 @@ venv.bak/
 
 # Project folders
 agents/
+
+# node / bun
+node_modules/
+
+# cre build artifacts
+workflow/binary.wasm.br.b64
+workflow/.cre_build_tmp.js
