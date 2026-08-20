@@ -12,10 +12,20 @@ DEFAULT_DRPC_NETWORK = "polygon"
 CONTRACT_NAME = "DonationStreamer"
 CONTRACT_PATH = "contracts/DonationStreamer.vy"
 SALT_SEED_TEXT = "DonationStreamer:v0.1.0"
+CTOR_SCHEMA = ""
 
 # CONTRACT_NAME = "StreamExecutor"
 # CONTRACT_PATH = "contracts/StreamExecutor.vy"
 # SALT_SEED_TEXT = "StreamExecutor:v0.1.0"
+# CTOR_SCHEMA = ""
+
+# CONTRACT_NAME = "CREStreamExecutor"
+# CONTRACT_PATH = "contracts/evm/src/CREStreamExecutor.vy"
+# SALT_SEED_TEXT = "CREStreamExecutor:v0.1.0"
+# CTOR_SCHEMA = "(address,address,address)"
+
+# CREStreamExecutor deploys with a zero forwarder; it is set per chain afterwards.
+ZERO_ADDRESS = "0x" + "00" * 20
 
 
 def _guarded_salt(deployer: str, chain_id: int, salt: bytes) -> bytes:
@@ -36,6 +46,30 @@ def _guarded_salt(deployer: str, chain_id: int, salt: bytes) -> bytes:
     if salt_sender == sender or salt_sender == b"\x00" * 20:
         raise ValueError("Invalid salt guard byte")
     return keccak(salt)
+
+
+def _resolve_ctor_args() -> tuple:
+    if CONTRACT_NAME != "CREStreamExecutor":
+        raise ValueError(f"No constructor arguments defined for {CONTRACT_NAME}")
+
+    streamer = os.environ.get("DONATION_STREAMER_ADDRESS")
+    if not streamer:
+        raise ValueError("DONATION_STREAMER_ADDRESS is required")
+
+    treasury = os.environ.get("TREASURY_ADDRESS")
+    if not treasury:
+        raise ValueError("TREASURY_ADDRESS is required")
+
+    return (streamer, ZERO_ADDRESS, treasury)
+
+
+def ctor_calldata() -> bytes:
+    # Appended to the initcode and reused as the verification calldata. A mismatch
+    # between the two only surfaces as a failed verification, after the deploy.
+    if not CTOR_SCHEMA:
+        return b""
+
+    return boa.util.abi.abi_encode(CTOR_SCHEMA, _resolve_ctor_args())
 
 
 def _resolve_rpc_url() -> str:
@@ -64,7 +98,8 @@ def main() -> None:
     private_key = decrypt_private_key(encrypted_key, getpass())
     deployer = Account.from_key(private_key)
     print(f"Deployer: {deployer.address}")
-    deploycode = boa.load_partial(CONTRACT_PATH).compiler_data.bytecode
+    encoded_ctor = ctor_calldata()
+    deploycode = boa.load_partial(CONTRACT_PATH).compiler_data.bytecode + encoded_ctor
 
     boa.set_network_env(rpc_url)
     boa.env.add_account(deployer)
@@ -105,7 +140,7 @@ def main() -> None:
             raise RuntimeError("No code at target")
 
     contract = boa.load_partial(CONTRACT_PATH).at(address)
-    contract.ctor_calldata = b""
+    contract.ctor_calldata = encoded_ctor
     verifier = Etherscan(etherscan_url + f"?chainid={chain_id}", api_key)
     boa.verify(contract, verifier=verifier)
 
