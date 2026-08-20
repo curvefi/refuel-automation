@@ -1,0 +1,14 @@
+{
+  "schedule": "0 */10 * * * *",
+  "readBlockTag": "latest",
+  "maxBatch": 4,
+  "minReward": "0",
+  "onReportGasLimit": "3000000",
+  "chains": [
+    {
+      "chainSelectorName": "ethereum-testnet-sepolia",
+      "streamerAddress": "0x0000000000000000000000000000000000000000",
+      "executorAddress": "0x0000000000000000000000000000000000000000"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+# ==========================================================================
+# CRE PROJECT SETTINGS FILE
+# ==========================================================================
+# One RPC per chain, per target. Used for simulation and binding generation;
+# deployed workflows use the DON's own RPCs, not these.
+
+staging-settings:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://ethereum-sepolia-rpc.publicnode.com
+    - chain-name: ethereum-testnet-sepolia-base-1
+      url: https://base-sepolia-rpc.publicnode.com
+
+production-settings:
+  rpcs:
+    - chain-name: ethereum-mainnet
+      url: https://ethereum-rpc.publicnode.com
+    - chain-name: gnosis_chain-mainnet
+      url: https://gnosis-rpc.publicnode.com
+    - chain-name: ethereum-mainnet-base-1
+      url: https://base-rpc.publicnode.com
+    - chain-name: polygon-mainnet
+      url: https://polygon-bor-rpc.publicnode.com

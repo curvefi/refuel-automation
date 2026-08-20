@@ -1,0 +1,30 @@
+{
+  "schedule": "0 19 */8 * * *",
+  "readBlockTag": "finalized",
+  "maxBatch": 8,
+  "minReward": "0",
+  "onReportGasLimit": "3000000",
+  "chains": [
+    {
+      "chainSelectorName": "ethereum-mainnet",
+      "streamerAddress": "0x2b786BB995978CC2242C567Ae62fd617b0eBC828",
+      "executorAddress": "0x0000000000000000000000000000000000000000",
+      "maxBatch": 4
+    },
+    {
+      "chainSelectorName": "gnosis_chain-mainnet",
+      "streamerAddress": "0x2b786BB995978CC2242C567Ae62fd617b0eBC828",
+      "executorAddress": "0x0000000000000000000000000000000000000000"
+    },
+    {
+      "chainSelectorName": "ethereum-mainnet-base-1",
+      "streamerAddress": "0x2b786BB995978CC2242C567Ae62fd617b0eBC828",
+      "executorAddress": "0x0000000000000000000000000000000000000000"
+    },
+    {
+      "chainSelectorName": "polygon-mainnet",
+      "streamerAddress": "0x2b786BB995978CC2242C567Ae62fd617b0eBC828",
+      "executorAddress": "0x0000000000000000000000000000000000000000"
+    }
+  ]
+}
