@@ -30,3 +30,6 @@ line-length = 100
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
+markers = [
+    "fork: needs an RPC fork of a live chain (deselect with -m \"not fork\")",
+]
