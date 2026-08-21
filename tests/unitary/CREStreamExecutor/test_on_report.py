@@ -104,3 +104,150 @@ def test_execution_count_tracks_only_what_landed(
 
 def test_streamer_is_immutable_and_points_at_the_streamer(executor, donation_streamer):
     assert executor.STREAMER() == donation_streamer.address
+
+
+def _bad_pool(deployer, tokens, mode):
+    token0, token1 = tokens
+    with boa.env.prank(deployer):
+        return boa.load("tests/mocks/MockBadPool.vy", [token0.address, token1.address], mode)
+
+
+def _stream_into(
+    donation_streamer, pool, tokens, donor, amounts, reward_per_period=50, n_periods=1
+):
+    for token, amount in zip(tokens, amounts):
+        token.mint(donor, amount)
+        with boa.env.prank(donor):
+            token.approve(donation_streamer.address, amount)
+    total = reward_per_period * n_periods
+    boa.env.set_balance(donor, boa.env.get_balance(donor) + total)
+    with boa.env.prank(donor):
+        return donation_streamer.create_stream(
+            pool.address,
+            [tokens[0].address, tokens[1].address],
+            amounts,
+            10,
+            n_periods,
+            reward_per_period,
+            value=total,
+        )
+
+
+@pytest.mark.parametrize("mode", (0, 1))
+def test_a_reverting_pool_does_not_take_the_rest_of_the_batch(
+    executor, donation_streamer, forwarder, metadata, funded_stream, deployer, tokens,
+    donor, treasury, mode
+):
+    bad = _bad_pool(deployer, tokens, mode)
+    bad_id = _stream_into(donation_streamer, bad, tokens, donor, [1_000, 1_000])
+    good_id = funded_stream["id"]
+
+    with boa.env.prank(forwarder):
+        executor.onReport(metadata, build_report([bad_id, good_id]))
+
+    assert executor.execution_count() == 1
+    assert boa.env.get_balance(treasury) == funded_stream["reward_per_period"]
+    assert donation_streamer.is_due(bad_id) is True
+
+
+def test_a_batch_of_only_bad_streams_records_strikes_instead_of_reverting(
+    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor
+):
+    """Reverting here would roll back the strikes that retire a bad stream."""
+    bad = _bad_pool(deployer, tokens, 0)
+    bad_id = _stream_into(donation_streamer, bad, tokens, donor, [1_000, 1_000])
+
+    with boa.env.prank(forwarder):
+        executor.onReport(metadata, build_report([bad_id]))
+
+    assert executor.strikes(bad_id) == 1
+    assert executor.execution_count() == 0
+
+
+def test_a_batch_of_only_stale_ids_still_reverts(executor, forwarder, metadata):
+    """Nothing failed and nothing landed: an exhausted keeper looks like this."""
+    with boa.env.prank(forwarder), boa.reverts("every execution failed"):
+        executor.onReport(metadata, build_report([404, 405]))
+
+
+def test_a_stream_is_set_aside_after_three_failures(
+    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor, mock_pool
+):
+    good_id = _stream_into(
+        donation_streamer, mock_pool, tokens, donor, [4_000, 4_000], n_periods=8
+    )
+    bad = _bad_pool(deployer, tokens, 0)
+    bad_id = _stream_into(donation_streamer, bad, tokens, donor, [1_000, 1_000])
+
+    for expected in (1, 2, 3):
+        with boa.env.prank(forwarder):
+            executor.onReport(metadata, build_report([bad_id, good_id]))
+        assert executor.strikes(bad_id) == expected
+        boa.env.time_travel(seconds=10)
+
+    # Set aside: still due on the streamer, no longer offered to the workflow.
+    assert donation_streamer.is_due(bad_id) is True
+    due_ids, _ = executor.executable_due()
+    assert bad_id not in due_ids
+
+
+def test_executable_due_still_offers_a_healthy_stream(executor, funded_stream):
+    due_ids, rewards = executor.executable_due()
+
+    assert funded_stream["id"] in due_ids
+    assert len(due_ids) == len(rewards)
+
+
+def test_a_set_aside_stream_is_skipped_even_if_a_report_names_it(
+    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor, mock_pool
+):
+    good_id = _stream_into(
+        donation_streamer, mock_pool, tokens, donor, [4_000, 4_000], n_periods=8
+    )
+    bad = _bad_pool(deployer, tokens, 0)
+    bad_id = _stream_into(donation_streamer, bad, tokens, donor, [1_000, 1_000])
+
+    for _ in range(3):
+        with boa.env.prank(forwarder):
+            executor.onReport(metadata, build_report([bad_id, good_id]))
+        boa.env.time_travel(seconds=10)
+
+    # A fourth attempt adds no strike: it is skipped before the call is made.
+    with boa.env.prank(forwarder):
+        executor.onReport(metadata, build_report([bad_id, good_id]))
+    assert executor.strikes(bad_id) == 3
+
+
+def test_a_success_clears_a_partial_strike_count(
+    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor
+):
+    """A pool broken then fixed must not stay one failure from the bin."""
+    pool = _bad_pool(deployer, tokens, 0)
+    stream_id = _stream_into(
+        donation_streamer, pool, tokens, donor, [4_000, 4_000], n_periods=8
+    )
+
+    for expected in (1, 2):
+        with boa.env.prank(forwarder):
+            executor.onReport(metadata, build_report([stream_id]))
+        assert executor.strikes(stream_id) == expected
+        boa.env.time_travel(seconds=10)
+
+    pool.set_mode(2)
+    with boa.env.prank(forwarder):
+        executor.onReport(metadata, build_report([stream_id]))
+
+    assert executor.strikes(stream_id) == 0
+
+    # Offered again once the next period comes round, rather than set aside.
+    boa.env.time_travel(seconds=10)
+    due_ids, _ = executor.executable_due()
+    assert stream_id in due_ids
+
+
+def test_only_the_owner_can_reset_strikes(executor, caller, deployer):
+    with boa.env.prank(caller), boa.reverts():
+        executor.reset_strikes([1])
+
+    with boa.env.prank(deployer):
+        executor.reset_strikes([1])
