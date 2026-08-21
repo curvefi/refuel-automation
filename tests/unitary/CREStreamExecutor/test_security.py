@@ -58,6 +58,7 @@ def test_an_unconfigured_executor_rejects_every_report(
             donation_streamer.address,
             forwarder,
             treasury,
+            deployer,
         )
 
     with boa.env.prank(forwarder), boa.reverts("Workflow parameters are not set"):
@@ -73,6 +74,7 @@ def test_a_zero_forwarder_disables_on_report(
             donation_streamer.address,
             ZERO,
             treasury,
+            deployer,
         )
         pending.set_expected_author(workflow_owner)
 
@@ -91,6 +93,7 @@ def test_configuring_the_forwarder_opens_it(
             donation_streamer.address,
             ZERO,
             treasury,
+            deployer,
         )
         pending.set_expected_author(workflow_owner)
         pending.set_forwarder_address(forwarder)
@@ -132,3 +135,35 @@ def test_supports_the_ireceiver_interface(executor):
     assert executor.supportsInterface(bytes.fromhex("805f2132")) is True
     assert executor.supportsInterface(bytes.fromhex("01ffc9a7")) is True
     assert executor.supportsInterface(bytes.fromhex("deadbeef")) is False
+
+
+def test_the_owner_comes_from_the_constructor_not_the_deployer(
+    donation_streamer, forwarder, treasury, workflow_owner
+):
+    proxy = boa.env.generate_address()
+
+    with boa.env.prank(proxy):
+        deployed = boa.load(
+            str(REPO_ROOT / EXECUTOR_SOURCE),
+            donation_streamer.address,
+            forwarder,
+            treasury,
+            workflow_owner,
+        )
+
+    assert deployed.owner() == workflow_owner
+    assert deployed.owner() != proxy
+
+    with boa.env.prank(workflow_owner):
+        deployed.set_forwarder_address(forwarder)
+
+
+def test_a_zero_owner_is_rejected(donation_streamer, forwarder, treasury, deployer):
+    with boa.env.prank(deployer), boa.reverts("owner required"):
+        boa.load(
+            str(REPO_ROOT / EXECUTOR_SOURCE),
+            donation_streamer.address,
+            forwarder,
+            treasury,
+            ZERO,
+        )

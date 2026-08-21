@@ -78,17 +78,27 @@ event TreasuryUpdated:
 
 ################ INIT ####################
 @deploy
-def __init__(_streamer: address, _forwarder_address: address, _treasury: address):
+def __init__(
+    _streamer: address,
+    _forwarder_address: address,
+    _treasury: address,
+    _owner: address,
+):
     """
     @notice Deploy the executor.
     @param _streamer The DonationStreamer this executor drives. Immutable.
     @param _forwarder_address The CRE forwarder. Zero disables onReport until set.
     @param _treasury Where execution rewards go. Zero parks them here until set.
+    @param _owner Owner, passed explicitly because CREATE3 constructs this from an
+           ephemeral proxy: msg.sender here is that proxy, not the deployer, and an
+           owner taken from it would leave the forwarder unsettable forever.
     """
     ownable.__init__()
 
     assert _streamer != empty(address), "streamer required"
+    assert _owner != empty(address), "owner required"
     STREAMER = _streamer
+    ownable._transfer_ownership(_owner)
 
     CREReceiver.__init__(_forwarder_address)
 

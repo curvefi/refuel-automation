@@ -40,6 +40,7 @@ def executor(deployer, donation_streamer, forwarder, workflow_owner, treasury):
             donation_streamer.address,
             forwarder,
             treasury,
+            deployer,
         )
         contract.set_expected_author(workflow_owner)
         contract.set_expected_workflow_name(WORKFLOW_NAME_PRODUCTION)

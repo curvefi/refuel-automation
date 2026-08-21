@@ -22,9 +22,11 @@ CTOR_SCHEMA = ""
 # CONTRACT_NAME = "CREStreamExecutor"
 # CONTRACT_PATH = "contracts/evm/src/CREStreamExecutor.vy"
 # SALT_SEED_TEXT = "CREStreamExecutor:v0.1.0"
-# CTOR_SCHEMA = "(address,address,address)"
+# CTOR_SCHEMA = "(address,address,address,address)"
 
 # CREStreamExecutor deploys with a zero forwarder; it is set per chain afterwards.
+# The owner is passed explicitly: CREATE3 constructs through an ephemeral proxy, so a
+# msg.sender-derived owner would be that proxy and nothing could ever be configured.
 ZERO_ADDRESS = "0x" + "00" * 20
 
 
@@ -60,7 +62,11 @@ def _resolve_ctor_args() -> tuple:
     if not treasury:
         raise ValueError("TREASURY_ADDRESS is required")
 
-    return (streamer, ZERO_ADDRESS, treasury)
+    owner = os.environ.get("OWNER_ADDRESS")
+    if not owner:
+        raise ValueError("OWNER_ADDRESS is required")
+
+    return (streamer, ZERO_ADDRESS, treasury, owner)
 
 
 def ctor_calldata() -> bytes:

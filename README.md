@@ -41,6 +41,9 @@ Also required when deploying `CREStreamExecutor`:
 
 - `DONATION_STREAMER_ADDRESS` - streamer the executor drives, immutable once set
 - `TREASURY_ADDRESS` - where execution rewards are swept
+- `OWNER_ADDRESS` - owner allowed to configure the executor after deployment
+
+The owner is an argument rather than `msg.sender` because CREATE3 constructs through an ephemeral proxy: an owner taken from the caller would be that proxy, and nothing could ever be configured.
 
 The forwarder is not an environment variable. It deploys as zero and is set per chain afterwards, leaving `onReport` disabled until then.
 
