@@ -131,6 +131,7 @@ def set_treasury(_treasury: address):
 ############### EXTERNAL ACTIONS #########
 @external
 @payable
+@nonreentrant
 def onReport(
     metadata: Bytes[CREReceiver.MAX_METADATA_SIZE],
     report: Bytes[CREReceiver.MAX_REPORT_SIZE],
@@ -162,6 +163,8 @@ def onReport(
 
     self.execution_count += executed
 
+    # nonreentrant on both entry points is what keeps this subtraction safe: a
+    # hostile pool cannot drain the balance through sweep() mid-execute_many.
     reward: uint256 = self.balance - balance_before
     log StreamsExecuted(
         requested=len(stream_ids),
@@ -173,6 +176,7 @@ def onReport(
 
 
 @external
+@nonreentrant
 def sweep():
     """
     @notice Push any parked rewards to the treasury.
