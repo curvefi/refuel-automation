@@ -31,9 +31,10 @@ export const configSchema = z.object({
 	// Streams run on multi-day periods, so the ~15 min finality lag costs nothing
 	// and every node reading the same block is what keeps consensus stable.
 	readBlockTag: z.enum(['finalized', 'latest']).default('finalized'),
-	// Streams per report. The executor's own MAX_BATCH is 32, but each stream
-	// costs an add_liquidity and CRE caps a transaction at 5,000,000 gas.
-	maxBatch: z.coerce.number().int().positive().max(32).default(8),
+	// Streams per report. The executor's own MAX_BATCH is 32, but each stream costs
+	// an add_liquidity plus two approvals and CRE caps a transaction at 5,000,000
+	// gas, so start low and raise a chain only once its real cost is measured.
+	maxBatch: z.coerce.number().int().positive().max(32).default(4),
 	// Skip a stream whose reward would not cover its own execution. "0" takes all.
 	minReward: z.string().default('0'),
 	onReportGasLimit: z.string(),
@@ -113,7 +114,7 @@ export const encodeReport = (items: readonly DueStream[]): `0x${string}` =>
 export type ChainResult = {
 	chain: string
 	due: number
-	executed: number
+	submitted: number
 	skipped: number
 	reward: string
 	txHash?: string
@@ -126,7 +127,7 @@ const sweepChain = (runtime: Runtime<Config>, chain: ResolvedChain): ChainResult
 	const result: ChainResult = {
 		chain: chain.chainSelectorName,
 		due: 0,
-		executed: 0,
+		submitted: 0,
 		skipped: 0,
 		reward: '0',
 	}
@@ -149,7 +150,6 @@ const sweepChain = (runtime: Runtime<Config>, chain: ResolvedChain): ChainResult
 	const blockTag =
 		chain.readBlockTag === 'latest' ? LATEST_BLOCK_NUMBER : LAST_FINALIZED_BLOCK_NUMBER
 
-	// One read per chain.
 	const [dueIds, rewards] = streamer.streamsAndRewardsDue(runtime, blockTag)
 	result.due = dueIds.length
 
@@ -168,6 +168,24 @@ const sweepChain = (runtime: Runtime<Config>, chain: ResolvedChain): ChainResult
 
 	const reward = items.reduce((sum, i) => sum + i.reward, 0n)
 	result.reward = reward.toString()
+
+	// Ids mean nothing except against the streamer they were read from: bound to a
+	// different one, the same numbers name different streams. Checked here rather than
+	// up front so a chain with nothing due still costs a single read.
+	let boundStreamer: string
+	try {
+		boundStreamer = executor.sTREAMER(runtime, blockTag)
+	} catch {
+		throw new Error(
+			`no CREStreamExecutor at ${chain.executorAddress} on ${chain.chainSelectorName}`,
+		)
+	}
+	if (boundStreamer.toLowerCase() !== chain.streamerAddress.toLowerCase()) {
+		throw new Error(
+			`executor ${chain.executorAddress} is bound to streamer ${boundStreamer}, ` +
+				`but config reads ids from ${chain.streamerAddress}`,
+		)
+	}
 
 	const reportData = encodeReport(items)
 	runtime.log(
@@ -190,15 +208,15 @@ const sweepChain = (runtime: Runtime<Config>, chain: ResolvedChain): ChainResult
 		throw new Error(`TX ${txHash} failed: ${writeResult.errorMessage || writeResult.txStatus}`)
 	}
 
-	result.executed = items.length
-	runtime.log(`[${chain.chainSelectorName}] executed ${items.length}, tx ${txHash}`)
+	result.submitted = items.length
+	runtime.log(`[${chain.chainSelectorName}] submitted ${items.length}, tx ${txHash}`)
 	return result
 }
 
 // ─── Cron Callback ──────────────────────────────────────────
 export const summarise = (results: readonly ChainResult[]) => ({
 	chains: results.length,
-	executed: results.reduce((n, r) => n + r.executed, 0),
+	submitted: results.reduce((n, r) => n + r.submitted, 0),
 	failed: results.filter((r) => r.error).map((r) => r.chain),
 	results,
 })
@@ -221,7 +239,7 @@ export const sweepAll = (
 			results.push({
 				chain: chain.chainSelectorName,
 				due: 0,
-				executed: 0,
+				submitted: 0,
 				skipped: 0,
 				reward: '0',
 				error: message,

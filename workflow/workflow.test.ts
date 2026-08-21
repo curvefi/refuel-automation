@@ -31,7 +31,7 @@ const chain = (over: Partial<ResolvedChain> = {}): ResolvedChain => ({
 const result = (over: Partial<ChainResult> = {}): ChainResult => ({
 	chain: 'ethereum-mainnet',
 	due: 0,
-	executed: 0,
+	submitted: 0,
 	skipped: 0,
 	reward: '0',
 	...over,
@@ -148,11 +148,11 @@ describe('sweepAll', () => {
 
 		const results = sweepAll(chains, (c) => {
 			if (c.chainSelectorName === 'a') throw new Error('rpc exploded')
-			return result({ chain: 'b', executed: 2 })
+			return result({ chain: 'b', submitted: 2 })
 		})
 
 		expect(results[0]?.error).toBe('rpc exploded')
-		expect(results[1]?.executed).toBe(2)
+		expect(results[1]?.submitted).toBe(2)
 	})
 
 	it('sweeps in config order', () => {
@@ -171,12 +171,12 @@ describe('sweepAll', () => {
 describe('summarise', () => {
 	it('totals executions and names the failed chains', () => {
 		const summary = summarise([
-			result({ chain: 'a', executed: 2 }),
+			result({ chain: 'a', submitted: 2 }),
 			result({ chain: 'b', error: 'boom' }),
 		])
 
 		expect(summary.chains).toBe(2)
-		expect(summary.executed).toBe(2)
+		expect(summary.submitted).toBe(2)
 		expect(summary.failed).toEqual(['b'])
 	})
 
