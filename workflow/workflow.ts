@@ -31,10 +31,11 @@ export const configSchema = z.object({
 	// Streams run on multi-day periods, so the ~15 min finality lag costs nothing
 	// and every node reading the same block is what keeps consensus stable.
 	readBlockTag: z.enum(['finalized', 'latest']).default('finalized'),
-	// Streams per report. The executor's own MAX_BATCH is 32, but each stream costs
-	// an add_liquidity plus two approvals and CRE caps a transaction at 5,000,000
-	// gas, so start low and raise a chain only once its real cost is measured.
-	maxBatch: z.coerce.number().int().positive().max(32).default(4),
+	// Streams per report. Measured at 248,928 fixed + 54,643/stream against the
+	// crvUSD/ZCHF pool, so a 3,000,000 limit fits the contract's own MAX_BATCH of
+	// 32; 16 stays safe even against a pool costing twice that. See
+	// tests/integration/CREStreamExecutor/test_real_pools.py.
+	maxBatch: z.coerce.number().int().positive().max(32).default(16),
 	// Skip a stream whose reward would not cover its own execution. "0" takes all.
 	minReward: z.string().default('0'),
 	onReportGasLimit: z.string(),
