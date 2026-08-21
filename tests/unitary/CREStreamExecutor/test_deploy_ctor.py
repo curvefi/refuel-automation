@@ -1,6 +1,5 @@
-"""The initcode suffix and the verification calldata must be the same bytes.
-A mismatch only surfaces as a failed verification, after the deploy is paid for.
-"""
+"""Initcode suffix and verification calldata must match; a mismatch only surfaces
+as a failed verification, after the deploy is paid for."""
 
 import importlib
 import sys

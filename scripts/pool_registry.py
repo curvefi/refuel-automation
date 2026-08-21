@@ -1,9 +1,7 @@
-"""Vet a pool for donation support offchain, before it goes anywhere near a test.
+"""Vet a pool for donation support offchain, before it goes near a test.
 
-`add_liquidity(uint256[2],uint256,address,bool)` only exists on newer pool
-implementations. Which implementation a factory pool runs is a fact the Curve API
-already publishes, so there is no reason to infer it from bytecode or to find out by
-watching a transaction revert.
+The donation form of add_liquidity exists only on newer implementations, and which one a
+factory pool runs is published by the Curve API - no need to infer it from bytecode.
 
     uv run python scripts/pool_registry.py base 0x1C53971800C111a32B7889177C56E3488cfe0BE0
     uv run python scripts/pool_registry.py --verify
@@ -31,9 +29,8 @@ ENDPOINTS = (
     "crypto",
 )
 
-# Blueprints known to expose the donation form of add_liquidity. The address is the
-# same on every chain because the blueprint is deployed deterministically. Extend this
-# only after confirming a donation actually lands, not from the name alone.
+# Blueprints exposing the donation form; same address on every chain. Extend only after
+# confirming a donation lands, not from the name.
 DONATION_IMPLEMENTATIONS = {
     "0x04fd6bec7d45efa99a27d29fb94b55c56dd07223": "twocrypto-optimized",
 }
@@ -100,7 +97,7 @@ def _describe(chain, address):
 
 
 def _verify():
-    """Re-check every registry pool against the API. Catches a pool being migrated."""
+    """Re-check the registry against the API; catches a pool being migrated."""
     failures = 0
     for chain, entry in registry_pools():
         meta = fetch_pool(chain, entry["address"])

@@ -61,7 +61,7 @@ INFURA_HOST = {
 
 
 def _rpc_for(network):
-    """Ankr first: it is the only one of the three that reliably serves a boa fork."""
+    """Ankr first: the only one of the three that reliably serves a boa fork."""
     explicit = _env(f"RPC_URL_{network.upper()}")
     if explicit:
         return explicit
@@ -76,7 +76,7 @@ def _rpc_for(network):
     if infura and network in INFURA_HOST:
         return f"https://{INFURA_HOST[network]}.infura.io/v3/{infura}"
 
-    # Last resort: serves state, but tends to time out partway through a fork.
+    # Last resort: serves state, but times out partway through a fork.
     drpc = _env("DRPC_API_KEY")
     if drpc:
         return f"https://lb.drpc.org/ogrpc?network={network}&dkey={drpc}"
@@ -111,8 +111,7 @@ def real_pool(request):
             "ANKR_API_KEY or DRPC_API_KEY"
         )
 
-    # A fresh env per pool: boa.fork mutates the global one, and any earlier test
-    # in the session leaves it dirty enough that forking refuses outright.
+    # A fresh env per pool: boa.fork refuses a global env any earlier test has dirtied.
     with boa.swap_env(boa.Env()):
         boa.fork(url=rpc, block_identifier=case["fork_block"], allow_dirty=True)
         boa.env.enable_fast_mode()
@@ -186,8 +185,7 @@ def make_stream(streamer, pool, coins, actors):
             try:
                 boa.deal(token, donor, amount, adjust_supply=False)
             except ValueError as exc:
-                # Some tokens pack their balances or compute them on the fly, so boa
-                # cannot write one. That makes the pool unfundable here, not broken.
+                # Packed or computed balances: unfundable here, not broken.
                 pytest.skip(f"cannot fund {token.address}: {exc}")
             with boa.env.prank(donor):
                 token.approve(streamer.address, amount)

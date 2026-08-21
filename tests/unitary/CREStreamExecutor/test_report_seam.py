@@ -1,4 +1,4 @@
-"""workflow.ts and cre_common.py each declare the report layout; only this round trip catches drift."""
+"""workflow.ts and cre_common.py each declare the report layout; only this catches drift."""
 
 import shutil
 import subprocess
