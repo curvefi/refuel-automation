@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Fork tests hit live chains, so they run daily rather than per-push.
+    - cron: "23 6 * * *"
+
+jobs:
+  unit:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive # CREReceiver.vy, which CREStreamExecutor imports
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - uses: oven-sh/setup-bun@v2 # test_report_seam.py drives workflow.ts through bun
+      - run: bun install --frozen-lockfile
+        working-directory: contracts
+      - run: bun install --frozen-lockfile
+        working-directory: workflow
+      - run: uv sync
+      - run: uv run pytest -q -m "not fork"
+
+  workflow:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+        working-directory: contracts # the bindings resolve their types from here
+      - run: bun install --frozen-lockfile
+        working-directory: workflow
+      - run: bun test
+        working-directory: workflow
+      - run: bun run typecheck
+        working-directory: workflow
+
+  fork:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Fork tests against live pools
+        env:
+          RPC_URL_ETHEREUM: ${{ secrets.RPC_URL_ETHEREUM }}
+          DRPC_API_KEY: ${{ secrets.DRPC_API_KEY }}
+        run: uv run pytest -q -m fork -rs
