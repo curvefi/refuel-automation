@@ -1,9 +1,5 @@
-"""The CRE path against real pools: the donation signature, a full round trip, and gas.
-
-Unit tests run against MockPool, which accepts any add_liquidity and costs nothing.
-Neither the four-argument donation signature nor the reward's 2300 gas stipend is
-proven until a real pool is on the other end.
-"""
+"""The CRE path against real pools. MockPool accepts any add_liquidity and costs
+nothing, so neither the donation signature nor the 2300 gas stipend is proven there."""
 
 import json
 import sys
@@ -26,12 +22,7 @@ CONFIG = REPO_ROOT / "workflow" / "config.production.json"
 HEADROOM = 0.7
 
 def test_the_pool_runs_a_donation_capable_implementation(real_pool):
-    """Whether a donation is even possible is decided by the blueprint, offchain.
-
-    Recorded in pools.json from the Curve API by scripts/pool_registry.py, so a pool
-    that cannot receive donations is rejected by name here rather than by an
-    undecodable revert once the fork is already running.
-    """
+    """Decided by the blueprint, offchain: rejected by name, not by a revert mid-fork."""
     impl = real_pool.get("implementationAddress")
     assert impl, (
         f"{real_pool['name']} has no recorded implementation; run "
@@ -93,7 +84,10 @@ def _report_gas(executor, metadata, stream_ids):
 
 
 def _cost_model(executor, metadata, make_stream):
-    """(fixed, per_stream) measured from a one-stream and a four-stream report."""
+    """(fixed, per_stream) from two WARM reports: the first onReport on a fresh executor
+    pays cold costs no later one does, which would understate the marginal stream."""
+    _report_gas(executor, metadata, [make_stream(n_periods=1)])  # warm-up, discarded
+    boa.env.time_travel(seconds=200)
     one = _report_gas(executor, metadata, [make_stream(n_periods=1)])
     boa.env.time_travel(seconds=200)
     many_ids = [make_stream(n_periods=1) for _ in range(4)]
