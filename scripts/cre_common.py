@@ -1,16 +1,10 @@
-"""What the CRE workflow, the tests and any deploy script must agree on, declared once.
-
-The report layout lives in two places by necessity - `workflow/workflow.ts` encodes it
-and `contracts/evm/src/CREStreamExecutor.vy` decodes it. Only the round trip in
-`tests/unitary/CREStreamExecutor/test_report_seam.py` catches drift between them.
-"""
+"""What the workflow, the tests and the deploy script must agree on, declared once.
+workflow.ts encodes the report and CREStreamExecutor.vy decodes it; test_report_seam is
+the only thing that catches drift between them."""
 
 import hashlib
 
 import boa
-
-# DonationStreamer, CREATE3-deployed to the same address on every chain.
-DONATION_STREAMER = "0x2b786BB995978CC2242C567Ae62fd617b0eBC828"
 
 EXECUTOR_SOURCE = "contracts/evm/src/CREStreamExecutor.vy"
 

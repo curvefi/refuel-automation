@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Regenerates the CRE bindings from evm/src/abi; patches explained in contracts/README.md.
 import { execSync } from 'node:child_process'
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -22,6 +22,14 @@ for (const file of readdirSync(generatedDir)) {
   fixStructFieldNames(path)
   fixFixedArrayParams(path)
   addCallBlockNumberParam(path)
+
+  // Patch 5: the _mock sibling imports the ABI rather than embedding it, so it needs
+  // the real file's blob to know what to rename.
+  const mock = join(generatedDir, file.replace(/\.ts$/, '_mock.ts'))
+  if (existsSync(mock)) {
+    fixStructFieldNames(mock, path)
+    fixFixedArrayParams(mock, path)
+  }
 }
 
 // Patch 1: functionName gets the suffixed name (`exchange0`), which viem rejects.
@@ -50,10 +58,10 @@ function fixOverloadFunctionNames(path: string): void {
 }
 
 // Patch 3: struct fields are camelCased in the type but viem decodes the ABI names.
-function fixStructFieldNames(path: string): void {
+function fixStructFieldNames(path: string, abiPath: string = path): void {
   const src = readFileSync(path, 'utf8')
 
-  const abiMatch = src.match(/export const \w+ABI = (\[[\s\S]*?\]) as const/)
+  const abiMatch = readFileSync(abiPath, 'utf8').match(/export const \w+ABI = (\[[\s\S]*?\]) as const/)
   if (!abiMatch) return
 
   // Every component name anywhere in the ABI, at any nesting depth.
@@ -100,10 +108,10 @@ function fixStructFieldNames(path: string): void {
 }
 
 // Patch 4: a `uint128[2]` param needs an exact-length tuple, not `readonly bigint[]`.
-function fixFixedArrayParams(path: string): void {
+function fixFixedArrayParams(path: string, abiPath: string = path): void {
   const src = readFileSync(path, 'utf8')
 
-  const abiMatch = src.match(/export const \w+ABI = (\[[\s\S]*?\]) as const/)
+  const abiMatch = readFileSync(abiPath, 'utf8').match(/export const \w+ABI = (\[[\s\S]*?\]) as const/)
   if (!abiMatch) return
 
   const TS: Record<string, string> = { uint: 'bigint', int: 'bigint', address: '`0x${string}`', bool: 'boolean' }

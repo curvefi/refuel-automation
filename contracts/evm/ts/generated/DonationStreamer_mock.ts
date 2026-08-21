@@ -7,7 +7,7 @@ import { DonationStreamerABI } from './DonationStreamer'
 export type DonationStreamerMock = {
   isDue?: (streamId: bigint) => boolean
   streamCount?: () => bigint
-  streams?: (arg0: bigint) => { donor: `0x${string}`; pool: `0x${string}`; coins: readonly `0x${string}`[]; amountsPerPeriod: readonly bigint[]; periodLength: bigint; rewardPerPeriod: bigint; nextTs: bigint; rewardRemaining: bigint; amountsRemaining: readonly bigint[]; periodsRemaining: bigint }
+  streams?: (arg0: bigint) => { donor: `0x${string}`; pool: `0x${string}`; coins: readonly `0x${string}`[]; amounts_per_period: readonly bigint[]; period_length: bigint; reward_per_period: bigint; next_ts: bigint; reward_remaining: bigint; amounts_remaining: readonly bigint[]; periods_remaining: bigint }
   streamsAndRewardsDue?: () => readonly [readonly bigint[], readonly bigint[]]
 } & Pick<ContractMock<typeof DonationStreamerABI>, 'writeReport'>
 
