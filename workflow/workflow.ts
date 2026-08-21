@@ -9,7 +9,6 @@ import {
 } from '@chainlink/cre-sdk'
 import { type Address, encodeAbiParameters, parseAbiParameters } from 'viem'
 import { z } from 'zod'
-import { DonationStreamer } from '../contracts/evm/ts/generated/DonationStreamer'
 import { CREStreamExecutor } from '../contracts/evm/ts/generated/CREStreamExecutor'
 
 // ─── Config Schema ──────────────────────────────────────────
@@ -31,10 +30,8 @@ export const configSchema = z.object({
 	// Streams run on multi-day periods, so the ~15 min finality lag costs nothing
 	// and every node reading the same block is what keeps consensus stable.
 	readBlockTag: z.enum(['finalized', 'latest']).default('finalized'),
-	// Streams per report. Measured at 248,928 fixed + 54,643/stream against the
-	// crvUSD/ZCHF pool, so a 3,000,000 limit fits the contract's own MAX_BATCH of
-	// 32; 16 stays safe even against a pool costing twice that. See
-	// tests/integration/CREStreamExecutor/test_real_pools.py.
+	// Measured at ~24k fixed + ~113k a stream, so the contract's own cap of 32 would
+	// not fit a 3,000,000 limit. See tests/integration/CREStreamExecutor.
 	maxBatch: z.coerce.number().int().positive().max(32).default(16),
 	// Skip a stream whose reward would not cover its own execution. "0" takes all.
 	minReward: z.string().default('0'),
@@ -71,8 +68,7 @@ export type Skip = { streamId: bigint; reason: string }
 export type Selection = { items: DueStream[]; skipped: Skip[] }
 
 // ─── Selection ──────────────────────────────────────────────
-// streams_and_rewards_due() already filters to what is due, so this only decides
-// what is worth executing and what fits in one report.
+// The executor's view already filters; this only decides what fits in one report.
 export const selectStreams = (
 	dueIds: readonly bigint[],
 	rewards: readonly bigint[],
@@ -94,20 +90,20 @@ export const selectStreams = (
 		candidates.push({ streamId, reward })
 	}
 
-	// Richest first, so a maxBatch cut drops the least valuable, and the rest stay
-	// due for the next run - nothing is lost by trimming.
-	candidates.sort((a, b) => (b.reward > a.reward ? 1 : b.reward < a.reward ? -1 : 0))
+	// Oldest id first, not richest: the reward is swept to the treasury rather than paid
+	// to a keeper, so sorting by it starves zero-reward streams and sells queue position.
+	candidates.sort((a, b) => (a.streamId > b.streamId ? 1 : a.streamId < b.streamId ? -1 : 0))
 
 	const kept = candidates.slice(0, opts.maxBatch)
 	for (const dropped of candidates.slice(opts.maxBatch)) {
+		// Still due, so the next tick picks it up; nothing is lost by trimming.
 		skipped.push({ streamId: dropped.streamId, reason: `over maxBatch ${opts.maxBatch}` })
 	}
 
 	return { items: kept, skipped }
 }
 
-// The report names streams and nothing else. Amounts, pools and recipients all
-// live in DonationStreamer storage, set by the donor at create_stream.
+// Ids only. Amounts, pools and recipients live in DonationStreamer storage.
 export const encodeReport = (items: readonly DueStream[]): `0x${string}` =>
 	encodeAbiParameters(parseAbiParameters('uint256[] streamIds'), [items.map((i) => i.streamId)])
 
@@ -145,17 +141,17 @@ const sweepChain = (runtime: Runtime<Config>, chain: ResolvedChain): ChainResult
 	if (!network) throw new Error(`Network not found: ${chain.chainSelectorName}`)
 
 	const evmClient = new cre.capabilities.EVMClient(network.chainSelector.selector)
-	const streamer = new DonationStreamer(evmClient, chain.streamerAddress)
 	const executor = new CREStreamExecutor(evmClient, chain.executorAddress)
 
 	const blockTag =
 		chain.readBlockTag === 'latest' ? LATEST_BLOCK_NUMBER : LAST_FINALIZED_BLOCK_NUMBER
 
-	const [dueIds, rewards] = streamer.streamsAndRewardsDue(runtime, blockTag)
+	// The executor's view drops set-aside streams, so a broken pool costs no batch slot.
+	const [dueIds, rewards] = executor.executableDue(runtime, blockTag)
 	result.due = dueIds.length
 
 	runtime.log(
-		`[${chain.chainSelectorName}] ${dueIds.length} due on ${streamer.address}, ` +
+		`[${chain.chainSelectorName}] ${dueIds.length} due on ${chain.executorAddress}, ` +
 			`read@${chain.readBlockTag}, maxBatch ${chain.maxBatch}`,
 	)
 
@@ -170,9 +166,7 @@ const sweepChain = (runtime: Runtime<Config>, chain: ResolvedChain): ChainResult
 	const reward = items.reduce((sum, i) => sum + i.reward, 0n)
 	result.reward = reward.toString()
 
-	// Ids mean nothing except against the streamer they were read from: bound to a
-	// different one, the same numbers name different streams. Checked here rather than
-	// up front so a chain with nothing due still costs a single read.
+	// Config sanity only now: catches an executorAddress bound to a different streamer.
 	let boundStreamer: string
 	try {
 		boundStreamer = executor.sTREAMER(runtime, blockTag)
@@ -262,8 +256,7 @@ export const onCron = (runtime: Runtime<Config>): string => {
 	)
 
 	const summary = summarise(results)
-	// CRE does not retry, so throwing only signals - it cannot double-execute.
-	// A stream another keeper took first is a no-op onchain, never a double donation.
+	// CRE does not retry, so throwing only signals; a stream taken first is a no-op.
 	if (summary.failed.length > 0) {
 		throw new Error(`chain(s) failed: ${JSON.stringify(summary)}`)
 	}

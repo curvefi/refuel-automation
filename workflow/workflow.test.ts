@@ -40,12 +40,13 @@ const result = (over: Partial<ChainResult> = {}): ChainResult => ({
 const reasons = (skipped: { reason: string }[]) => skipped.map((s) => s.reason)
 
 describe('selectStreams', () => {
-	it('takes every due stream when nothing filters', () => {
-		const { items, skipped } = selectStreams([1n, 2n], [10n, 20n], params())
+	it('takes every due stream, oldest id first, whatever the rewards', () => {
+		// The streamer returns newest first; a zero-reward stream must not sort last.
+		const { items, skipped } = selectStreams([2n, 1n], [0n, 10n], params())
 
 		expect(items).toEqual([
-			{ streamId: 2n, reward: 20n },
 			{ streamId: 1n, reward: 10n },
+			{ streamId: 2n, reward: 0n },
 		])
 		expect(skipped).toEqual([])
 	})
@@ -67,16 +68,22 @@ describe('selectStreams', () => {
 		expect(items).toEqual([{ streamId: 1n, reward: 50n }])
 	})
 
-	it('cuts to maxBatch, dropping the least valuable', () => {
+	it('cuts to maxBatch, dropping the newest rather than the poorest', () => {
 		const { items, skipped } = selectStreams([1n, 2n, 3n], [10n, 30n, 20n], params({ maxBatch: 2 }))
 
 		expect(items).toEqual([
+			{ streamId: 1n, reward: 10n },
 			{ streamId: 2n, reward: 30n },
-			{ streamId: 3n, reward: 20n },
 		])
 		expect(reasons(skipped)).toEqual(['over maxBatch 2'])
 		// The dropped stream stays due, so the next run picks it up.
-		expect(skipped[0]?.streamId).toBe(1n)
+		expect(skipped[0]?.streamId).toBe(3n)
+	})
+
+	it('cannot be jumped by naming a large reward', () => {
+		const { items } = selectStreams([9n, 1n], [10n ** 18n, 0n], params({ maxBatch: 1 }))
+
+		expect(items).toEqual([{ streamId: 1n, reward: 0n }])
 	})
 
 	it('throws when the streamer returns mismatched arrays', () => {
