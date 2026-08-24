@@ -6,7 +6,7 @@ import { CREStreamExecutorABI } from './CREStreamExecutor'
 
 export type CREStreamExecutorMock = {
   sTREAMER?: () => `0x${string}`
-  executableDue?: () => readonly [readonly bigint[], readonly bigint[]]
+  executableDue?: () => readonly bigint[]
   executionCount?: () => bigint
   expectedAuthor?: () => `0x${string}`
   expectedWorkflowId?: () => `0x${string}`
@@ -15,7 +15,6 @@ export type CREStreamExecutorMock = {
   owner?: () => `0x${string}`
   strikes?: (arg0: bigint) => bigint
   supportsInterface?: (interfaceId: `0x${string}`) => boolean
-  treasury?: () => `0x${string}`
 } & Pick<ContractMock<typeof CREStreamExecutorABI>, 'writeReport'>
 
 export function newCREStreamExecutorMock(address: Address, evmMock: EvmMock): CREStreamExecutorMock {

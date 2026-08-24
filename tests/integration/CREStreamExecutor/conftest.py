@@ -11,6 +11,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from cre_common import (  # noqa: E402
     EXECUTOR_SOURCE,
+    STREAMER_SOURCE,
     WORKFLOW_NAME_PRODUCTION,
     build_metadata,
     encoded_workflow_name,
@@ -136,28 +137,25 @@ def actors(real_pool):
     owner = boa.env.generate_address()
     donor = boa.env.generate_address()
     forwarder = boa.env.generate_address()
-    treasury = boa.env.generate_address()
     boa.env.set_balance(donor, 10**20)
-    boa.env.set_balance(treasury, 0)
-    return owner, donor, forwarder, treasury
+    return owner, donor, forwarder
 
 
 @pytest.fixture()
 def streamer(actors):
     owner = actors[0]
     with boa.env.prank(owner):
-        return boa.load(str(REPO_ROOT / "contracts" / "DonationStreamer.vy"))
+        return boa.load(str(REPO_ROOT / STREAMER_SOURCE))
 
 
 @pytest.fixture()
 def executor(actors, streamer):
-    owner, _, forwarder, treasury = actors
+    owner, _, forwarder = actors
     with boa.env.prank(owner):
         contract = boa.load(
             str(REPO_ROOT / EXECUTOR_SOURCE),
             streamer.address,
             forwarder,
-            treasury,
             owner,
         )
         contract.set_expected_author(owner)
@@ -175,11 +173,11 @@ def metadata(actors):
 
 @pytest.fixture()
 def make_stream(streamer, pool, coins, actors):
-    _, donor, _, _ = actors
+    _, donor, _ = actors
     token0, token1 = coins
     units = [10 ** token0.decimals(), 10 ** token1.decimals()]
 
-    def _make(n_periods=2, reward_per_period=10**14, period_length=120):
+    def _make(n_periods=2, period_length=120):
         amounts = [2 * units[0], 2 * units[1]]
         for token, amount in zip(coins, amounts):
             try:
@@ -190,8 +188,6 @@ def make_stream(streamer, pool, coins, actors):
             with boa.env.prank(donor):
                 token.approve(streamer.address, amount)
 
-        reward_total = reward_per_period * n_periods
-        boa.env.set_balance(donor, boa.env.get_balance(donor) + reward_total)
         with boa.env.prank(donor):
             return streamer.create_stream(
                 pool.address,
@@ -199,8 +195,6 @@ def make_stream(streamer, pool, coins, actors):
                 amounts,
                 period_length,
                 n_periods,
-                reward_per_period,
-                value=reward_total,
             )
 
     return _make

@@ -3,7 +3,7 @@
 @title CREStreamExecutor
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2025 - all rights reserved
-@notice Execute due streams from a Chainlink CRE report and sweep rewards to a treasury.
+@notice Execute due streams from a Chainlink CRE report.
 """
 
 ############### INTERFACES #################
@@ -14,9 +14,7 @@ implements: IReceiver
 
 interface DonationStreamer:
     def execute(stream_id: uint256) -> bool: nonpayable
-    def streams_and_rewards_due() -> (
-        DynArray[uint256, N_MAX_VIEW], DynArray[uint256, N_MAX_VIEW]
-    ): view
+    def streams_due() -> DynArray[uint256, N_MAX_VIEW]: view
 
 
 ################ MODULES ##################
@@ -39,9 +37,6 @@ exports: CREReceiver.__interface__
 # DonationStreamer.N_MAX_EXECUTE, so a report never needs chunking.
 MAX_BATCH: constant(uint256) = 32
 
-# An EOA needs 2300, a Safe more; bounded so a broken treasury cannot burn the batch.
-SWEEP_GAS: constant(uint256) = 50_000
-
 # DonationStreamer.N_MAX_VIEW, the cap on its own due-stream scan.
 N_MAX_VIEW: constant(uint256) = 1024
 
@@ -58,8 +53,6 @@ STREAMER: public(immutable(address))
 
 
 ################ DATA ####################
-treasury: public(address)
-
 execution_count: public(uint256)
 
 # At MAX_STRIKES executable_due() stops offering it and onReport skips it.
@@ -70,7 +63,6 @@ strikes: public(HashMap[uint256, uint256])
 event StreamsExecuted:
     requested: uint256
     executed: uint256
-    reward: uint256
 
 
 event StreamFailed:
@@ -86,34 +78,17 @@ event StrikesReset:
     stream_id: indexed(uint256)
 
 
-event RewardSwept:
-    treasury: indexed(address)
-    amount: uint256
-
-
-event RewardSweepFailed:
-    treasury: indexed(address)
-    amount: uint256
-
-
-event TreasuryUpdated:
-    previous_treasury: indexed(address)
-    new_treasury: indexed(address)
-
-
 ################ INIT ####################
 @deploy
 def __init__(
     _streamer: address,
     _forwarder_address: address,
-    _treasury: address,
     _owner: address,
 ):
     """
     @notice Deploy the executor.
     @param _streamer The DonationStreamer this executor drives. Immutable.
     @param _forwarder_address The CRE forwarder. Zero disables onReport until set.
-    @param _treasury Where execution rewards go. Zero parks them here until set.
     @param _owner Explicit because CREATE3 constructs from an ephemeral proxy, so a
            msg.sender owner would be that proxy and nothing could ever be configured.
     """
@@ -125,12 +100,6 @@ def __init__(
     ownable._transfer_ownership(_owner)
 
     CREReceiver.__init__(_forwarder_address)
-
-    self.treasury = _treasury
-    log TreasuryUpdated(
-        previous_treasury=empty(address),
-        new_treasury=_treasury,
-    )
 
 
 ############ OWNER FUNCTIONS #############
@@ -147,23 +116,6 @@ def reset_strikes(stream_ids: DynArray[uint256, MAX_BATCH]):
         log StrikesReset(stream_id=stream_id)
 
 
-@external
-def set_treasury(_treasury: address):
-    """
-    @notice Set where execution rewards are swept.
-    @dev Zero parks rewards here; a later set_treasury plus sweep() releases them.
-    """
-    ownable._check_owner()
-
-    previous_treasury: address = self.treasury
-
-    self.treasury = _treasury
-    log TreasuryUpdated(
-        previous_treasury=previous_treasury,
-        new_treasury=_treasury,
-    )
-
-
 ############### EXTERNAL ACTIONS #########
 @external
 @payable
@@ -174,6 +126,8 @@ def onReport(
 ):
     """
     @notice Called by the forwarder, after CREReceiver validates it and the workflow.
+    @dev Payable only because IReceiver declares it so; v2 pays no reward and nothing
+         here expects value, so any sent would be stranded.
     @param report ABI-encoded (uint256[] stream_ids)
     """
     CREReceiver._on_report(metadata, report)
@@ -182,7 +136,6 @@ def onReport(
         report, DynArray[uint256, MAX_BATCH]
     )
 
-    balance_before: uint256 = self.balance
     executed: uint256 = 0
     failed: uint256 = 0
     executed, failed = self._execute_isolated(stream_ids)
@@ -193,58 +146,25 @@ def onReport(
 
     self.execution_count += executed
 
-    # Safe only because both entry points are nonreentrant; sweep() is permissionless.
-    reward: uint256 = self.balance - balance_before
-    log StreamsExecuted(
-        requested=len(stream_ids),
-        executed=executed,
-        reward=reward,
-    )
-
-    self._sweep()
-
-
-@external
-@nonreentrant
-def sweep():
-    """
-    @notice Push any parked rewards to the treasury.
-    @dev Permissionless, but the destination is owner-set.
-    """
-    self._sweep()
+    log StreamsExecuted(requested=len(stream_ids), executed=executed)
 
 
 @view
 @external
-def executable_due() -> (DynArray[uint256, N_MAX_VIEW], DynArray[uint256, N_MAX_VIEW]):
+def executable_due() -> DynArray[uint256, N_MAX_VIEW]:
     """
     @notice The streamer's due list minus anything set aside. The read the workflow makes.
     @dev Filtering here costs a known-bad stream no batch slot and no workflow redeploy.
     """
-    due_ids: DynArray[uint256, N_MAX_VIEW] = empty(DynArray[uint256, N_MAX_VIEW])
-    rewards: DynArray[uint256, N_MAX_VIEW] = empty(DynArray[uint256, N_MAX_VIEW])
-    due_ids, rewards = staticcall DonationStreamer(STREAMER).streams_and_rewards_due()
+    due_ids: DynArray[uint256, N_MAX_VIEW] = staticcall DonationStreamer(STREAMER).streams_due()
 
     out_ids: DynArray[uint256, N_MAX_VIEW] = empty(DynArray[uint256, N_MAX_VIEW])
-    out_rewards: DynArray[uint256, N_MAX_VIEW] = empty(DynArray[uint256, N_MAX_VIEW])
-
     for i: uint256 in range(len(due_ids), bound=N_MAX_VIEW):
         if self.strikes[due_ids[i]] >= MAX_STRIKES:
             continue
         out_ids.append(due_ids[i])
-        out_rewards.append(rewards[i])
 
-    return out_ids, out_rewards
-
-
-@external
-@payable
-def __default__():
-    """
-    @dev How the reward arrives. Empty and not nonreentrant on purpose: reached from
-         inside onReport on a 2300 gas stipend.
-    """
-    pass
+    return out_ids
 
 
 ############ INTERNAL HELPERS ############
@@ -291,26 +211,3 @@ def _execute_isolated(stream_ids: DynArray[uint256, MAX_BATCH]) -> (uint256, uin
     return executed, failed
 
 
-@internal
-def _sweep():
-    amount: uint256 = self.balance
-    if amount == 0:
-        return
-
-    treasury: address = self.treasury
-    if treasury == empty(address):
-        return
-
-    # A treasury that reverts must not strand the donation that funded it.
-    success: bool = raw_call(
-        treasury,
-        b"",
-        value=amount,
-        gas=SWEEP_GAS,
-        revert_on_failure=False,
-    )
-
-    if success:
-        log RewardSwept(treasury=treasury, amount=amount)
-    else:
-        log RewardSweepFailed(treasury=treasury, amount=amount)

@@ -136,40 +136,6 @@ export type OwnershipTransferredDecoded = {
 
 
 /**
- * Filter params for RewardSweepFailed. Only indexed fields can be used for filtering.
- * Indexed string/bytes must be passed as keccak256 hash (Hex).
- */
-export type RewardSweepFailedTopics = {
-  treasury?: `0x${string}`
-}
-
-/**
- * Decoded RewardSweepFailed event data.
- */
-export type RewardSweepFailedDecoded = {
-  treasury: `0x${string}`
-  amount: bigint
-}
-
-
-/**
- * Filter params for RewardSwept. Only indexed fields can be used for filtering.
- * Indexed string/bytes must be passed as keccak256 hash (Hex).
- */
-export type RewardSweptTopics = {
-  treasury?: `0x${string}`
-}
-
-/**
- * Decoded RewardSwept event data.
- */
-export type RewardSweptDecoded = {
-  treasury: `0x${string}`
-  amount: bigint
-}
-
-
-/**
  * Filter params for StreamFailed. Only indexed fields can be used for filtering.
  * Indexed string/bytes must be passed as keccak256 hash (Hex).
  */
@@ -215,7 +181,6 @@ export type StreamsExecutedTopics = {
 export type StreamsExecutedDecoded = {
   requested: bigint
   executed: bigint
-  reward: bigint
 }
 
 
@@ -235,27 +200,9 @@ export type StrikesResetDecoded = {
 }
 
 
-/**
- * Filter params for TreasuryUpdated. Only indexed fields can be used for filtering.
- * Indexed string/bytes must be passed as keccak256 hash (Hex).
- */
-export type TreasuryUpdatedTopics = {
-  previousTreasury?: `0x${string}`
-  newTreasury?: `0x${string}`
-}
-
-/**
- * Decoded TreasuryUpdated event data.
- */
-export type TreasuryUpdatedDecoded = {
-  previousTreasury: `0x${string}`
-  newTreasury: `0x${string}`
-}
-
-
 type BlockNumberOption = typeof LAST_FINALIZED_BLOCK_NUMBER
 
-export const CREStreamExecutorABI = [{"name":"StreamsExecuted","inputs":[{"name":"requested","type":"uint256","indexed":false},{"name":"executed","type":"uint256","indexed":false},{"name":"reward","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamFailed","inputs":[{"name":"stream_id","type":"uint256","indexed":true},{"name":"strikes","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamSetAside","inputs":[{"name":"stream_id","type":"uint256","indexed":true}],"anonymous":false,"type":"event"},{"name":"StrikesReset","inputs":[{"name":"stream_id","type":"uint256","indexed":true}],"anonymous":false,"type":"event"},{"name":"RewardSwept","inputs":[{"name":"treasury","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"RewardSweepFailed","inputs":[{"name":"treasury","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"TreasuryUpdated","inputs":[{"name":"previous_treasury","type":"address","indexed":true},{"name":"new_treasury","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"OwnershipTransferred","inputs":[{"name":"previous_owner","type":"address","indexed":true},{"name":"new_owner","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"CRESecurityWarning","inputs":[{"name":"message","type":"string","indexed":false}],"anonymous":false,"type":"event"},{"name":"ForwarderAddressUpdated","inputs":[{"name":"previous_forwarder","type":"address","indexed":true},{"name":"new_forwarder","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedAuthorUpdated","inputs":[{"name":"previous_author","type":"address","indexed":true},{"name":"new_author","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedWorkflowNameUpdated","inputs":[{"name":"previous_name","type":"bytes10","indexed":true},{"name":"new_name","type":"bytes10","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedWorkflowIdUpdated","inputs":[{"name":"previous_id","type":"bytes32","indexed":true},{"name":"new_id","type":"bytes32","indexed":true}],"anonymous":false,"type":"event"},{"stateMutability":"view","type":"function","name":"owner","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"nonpayable","type":"function","name":"transfer_ownership","inputs":[{"name":"new_owner","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"renounce_ownership","inputs":[],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_forwarder_address","inputs":[{"name":"_forwarder_address","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_author","inputs":[{"name":"_expected_author","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_workflow_name","inputs":[{"name":"_expected_workflow_name","type":"string"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_workflow_id","inputs":[{"name":"_expected_workflow_id","type":"bytes32"}],"outputs":[]},{"stateMutability":"view","type":"function","name":"supportsInterface","inputs":[{"name":"interface_id","type":"bytes4"}],"outputs":[{"name":"","type":"bool"}]},{"stateMutability":"view","type":"function","name":"forwarder_address","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"expected_author","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"expected_workflow_name","inputs":[],"outputs":[{"name":"","type":"bytes10"}]},{"stateMutability":"view","type":"function","name":"expected_workflow_id","inputs":[],"outputs":[{"name":"","type":"bytes32"}]},{"stateMutability":"nonpayable","type":"function","name":"reset_strikes","inputs":[{"name":"stream_ids","type":"uint256[]"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_treasury","inputs":[{"name":"_treasury","type":"address"}],"outputs":[]},{"stateMutability":"payable","type":"function","name":"onReport","inputs":[{"name":"metadata","type":"bytes"},{"name":"report","type":"bytes"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"sweep","inputs":[],"outputs":[]},{"stateMutability":"view","type":"function","name":"executable_due","inputs":[],"outputs":[{"name":"","type":"uint256[]"},{"name":"","type":"uint256[]"}]},{"stateMutability":"payable","type":"fallback"},{"stateMutability":"view","type":"function","name":"STREAMER","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"treasury","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"execution_count","inputs":[],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"view","type":"function","name":"strikes","inputs":[{"name":"arg0","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"nonpayable","type":"constructor","inputs":[{"name":"_streamer","type":"address"},{"name":"_forwarder_address","type":"address"},{"name":"_treasury","type":"address"},{"name":"_owner","type":"address"}],"outputs":[]}] as const
+export const CREStreamExecutorABI = [{"name":"StreamsExecuted","inputs":[{"name":"requested","type":"uint256","indexed":false},{"name":"executed","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamFailed","inputs":[{"name":"stream_id","type":"uint256","indexed":true},{"name":"strikes","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamSetAside","inputs":[{"name":"stream_id","type":"uint256","indexed":true}],"anonymous":false,"type":"event"},{"name":"StrikesReset","inputs":[{"name":"stream_id","type":"uint256","indexed":true}],"anonymous":false,"type":"event"},{"name":"OwnershipTransferred","inputs":[{"name":"previous_owner","type":"address","indexed":true},{"name":"new_owner","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"CRESecurityWarning","inputs":[{"name":"message","type":"string","indexed":false}],"anonymous":false,"type":"event"},{"name":"ForwarderAddressUpdated","inputs":[{"name":"previous_forwarder","type":"address","indexed":true},{"name":"new_forwarder","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedAuthorUpdated","inputs":[{"name":"previous_author","type":"address","indexed":true},{"name":"new_author","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedWorkflowNameUpdated","inputs":[{"name":"previous_name","type":"bytes10","indexed":true},{"name":"new_name","type":"bytes10","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedWorkflowIdUpdated","inputs":[{"name":"previous_id","type":"bytes32","indexed":true},{"name":"new_id","type":"bytes32","indexed":true}],"anonymous":false,"type":"event"},{"stateMutability":"view","type":"function","name":"owner","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"nonpayable","type":"function","name":"transfer_ownership","inputs":[{"name":"new_owner","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"renounce_ownership","inputs":[],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_forwarder_address","inputs":[{"name":"_forwarder_address","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_author","inputs":[{"name":"_expected_author","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_workflow_name","inputs":[{"name":"_expected_workflow_name","type":"string"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_workflow_id","inputs":[{"name":"_expected_workflow_id","type":"bytes32"}],"outputs":[]},{"stateMutability":"view","type":"function","name":"supportsInterface","inputs":[{"name":"interface_id","type":"bytes4"}],"outputs":[{"name":"","type":"bool"}]},{"stateMutability":"view","type":"function","name":"forwarder_address","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"expected_author","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"expected_workflow_name","inputs":[],"outputs":[{"name":"","type":"bytes10"}]},{"stateMutability":"view","type":"function","name":"expected_workflow_id","inputs":[],"outputs":[{"name":"","type":"bytes32"}]},{"stateMutability":"nonpayable","type":"function","name":"reset_strikes","inputs":[{"name":"stream_ids","type":"uint256[]"}],"outputs":[]},{"stateMutability":"payable","type":"function","name":"onReport","inputs":[{"name":"metadata","type":"bytes"},{"name":"report","type":"bytes"}],"outputs":[]},{"stateMutability":"view","type":"function","name":"executable_due","inputs":[],"outputs":[{"name":"","type":"uint256[]"}]},{"stateMutability":"view","type":"function","name":"STREAMER","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"execution_count","inputs":[],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"view","type":"function","name":"strikes","inputs":[{"name":"arg0","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"nonpayable","type":"constructor","inputs":[{"name":"_streamer","type":"address"},{"name":"_forwarder_address","type":"address"},{"name":"_owner","type":"address"}],"outputs":[]}] as const
 
 export class CREStreamExecutor {
   constructor(
@@ -289,7 +236,7 @@ export class CREStreamExecutor {
   executableDue(
     runtime: Runtime<unknown>,
     callBlockNumber: BlockNumberOption = LAST_FINALIZED_BLOCK_NUMBER,
-  ): readonly [readonly bigint[], readonly bigint[]] {
+  ): readonly bigint[] {
     const callData = encodeFunctionData({
       abi: CREStreamExecutorABI,
       functionName: 'executable_due' as const,
@@ -306,7 +253,7 @@ export class CREStreamExecutor {
       abi: CREStreamExecutorABI,
       functionName: 'executable_due' as const,
       data: bytesToHex(result.data),
-    }) as readonly [readonly bigint[], readonly bigint[]]
+    }) as readonly bigint[]
   }
 
   executionCount(
@@ -497,29 +444,6 @@ export class CREStreamExecutor {
     }) as boolean
   }
 
-  treasury(
-    runtime: Runtime<unknown>,
-    callBlockNumber: BlockNumberOption = LAST_FINALIZED_BLOCK_NUMBER,
-  ): `0x${string}` {
-    const callData = encodeFunctionData({
-      abi: CREStreamExecutorABI,
-      functionName: 'treasury' as const,
-    })
-
-    const result = this.client
-      .callContract(runtime, {
-        call: encodeCallMsg({ from: zeroAddress, to: this.address, data: callData }),
-        blockNumber: callBlockNumber,
-      })
-      .result()
-
-    return decodeFunctionResult({
-      abi: CREStreamExecutorABI,
-      functionName: 'treasury' as const,
-      data: bytesToHex(result.data),
-    }) as `0x${string}`
-  }
-
   writeReportFromOnReport(
     runtime: Runtime<unknown>,
     metadata: `0x${string}`,
@@ -650,30 +574,6 @@ export class CREStreamExecutor {
       abi: CREStreamExecutorABI,
       functionName: 'set_forwarder_address' as const,
       args: [forwarderAddress],
-    })
-
-    const reportResponse = runtime
-      .report(prepareReportRequest(callData))
-      .result()
-
-    return this.client
-      .writeReport(runtime, {
-        receiver: this.address,
-        report: reportResponse,
-        gasConfig,
-      })
-      .result()
-  }
-
-  writeReportFromSetTreasury(
-    runtime: Runtime<unknown>,
-    treasury: `0x${string}`,
-    gasConfig?: { gasLimit?: string },
-  ) {
-    const callData = encodeFunctionData({
-      abi: CREStreamExecutorABI,
-      functionName: 'set_treasury' as const,
-      args: [treasury],
     })
 
     const reportResponse = runtime
@@ -1154,144 +1054,6 @@ export class CREStreamExecutor {
   }
 
   /**
-   * Creates a log trigger for RewardSweepFailed events.
-   * The returned trigger's adapt method decodes the raw log into RewardSweepFailedDecoded,
-   * so the handler receives typed event data directly.
-   * When multiple filters are provided, topic values are merged with OR semantics (match any).
-   */
-  logTriggerRewardSweepFailed(
-    filters?: RewardSweepFailedTopics[],
-  ) {
-    let topics: { values: string[] }[]
-    if (!filters || filters.length === 0) {
-      const encoded = encodeEventTopics({
-        abi: CREStreamExecutorABI,
-        eventName: 'RewardSweepFailed' as const,
-      })
-      topics = encoded.map((t) => ({ values: encodeTopicValue(t) }))
-    } else if (filters.length === 1) {
-      const f = filters[0]
-      const args = {
-        treasury: f.treasury,
-      }
-      const encoded = encodeEventTopics({
-        abi: CREStreamExecutorABI,
-        eventName: 'RewardSweepFailed' as const,
-        args,
-      })
-      topics = encoded.map((t) => ({ values: encodeTopicValue(t) }))
-    } else {
-      const allEncoded = filters.map((f) => {
-        const args = {
-          treasury: f.treasury,
-        }
-        return encodeEventTopics({
-          abi: CREStreamExecutorABI,
-          eventName: 'RewardSweepFailed' as const,
-          args,
-        })
-      })
-      topics = allEncoded[0].map((_, i) => ({
-        values: [...new Set(allEncoded.flatMap((row) => encodeTopicValue(row[i])))],
-      }))
-    }
-    const baseTrigger = this.client.logTrigger({
-      addresses: [hexToBase64(this.address)],
-      topics,
-    })
-    const contract = this
-    return {
-      capabilityId: () => baseTrigger.capabilityId(),
-      method: () => baseTrigger.method(),
-      outputSchema: () => baseTrigger.outputSchema(),
-      configAsAny: () => baseTrigger.configAsAny(),
-      adapt: (rawOutput: EVMLog): DecodedLog<RewardSweepFailedDecoded> => contract.decodeRewardSweepFailed(rawOutput),
-    }
-  }
-
-  /**
-   * Decodes a log into RewardSweepFailed data, preserving all log metadata.
-   */
-  decodeRewardSweepFailed(log: EVMLog): DecodedLog<RewardSweepFailedDecoded> {
-    const decoded = decodeEventLog({
-      abi: CREStreamExecutorABI,
-      data: bytesToHex(log.data),
-      topics: log.topics.map((t) => bytesToHex(t)) as [Hex, ...Hex[]],
-    })
-    const { data: _, ...rest } = log
-    return { ...rest, data: decoded.args as unknown as RewardSweepFailedDecoded }
-  }
-
-  /**
-   * Creates a log trigger for RewardSwept events.
-   * The returned trigger's adapt method decodes the raw log into RewardSweptDecoded,
-   * so the handler receives typed event data directly.
-   * When multiple filters are provided, topic values are merged with OR semantics (match any).
-   */
-  logTriggerRewardSwept(
-    filters?: RewardSweptTopics[],
-  ) {
-    let topics: { values: string[] }[]
-    if (!filters || filters.length === 0) {
-      const encoded = encodeEventTopics({
-        abi: CREStreamExecutorABI,
-        eventName: 'RewardSwept' as const,
-      })
-      topics = encoded.map((t) => ({ values: encodeTopicValue(t) }))
-    } else if (filters.length === 1) {
-      const f = filters[0]
-      const args = {
-        treasury: f.treasury,
-      }
-      const encoded = encodeEventTopics({
-        abi: CREStreamExecutorABI,
-        eventName: 'RewardSwept' as const,
-        args,
-      })
-      topics = encoded.map((t) => ({ values: encodeTopicValue(t) }))
-    } else {
-      const allEncoded = filters.map((f) => {
-        const args = {
-          treasury: f.treasury,
-        }
-        return encodeEventTopics({
-          abi: CREStreamExecutorABI,
-          eventName: 'RewardSwept' as const,
-          args,
-        })
-      })
-      topics = allEncoded[0].map((_, i) => ({
-        values: [...new Set(allEncoded.flatMap((row) => encodeTopicValue(row[i])))],
-      }))
-    }
-    const baseTrigger = this.client.logTrigger({
-      addresses: [hexToBase64(this.address)],
-      topics,
-    })
-    const contract = this
-    return {
-      capabilityId: () => baseTrigger.capabilityId(),
-      method: () => baseTrigger.method(),
-      outputSchema: () => baseTrigger.outputSchema(),
-      configAsAny: () => baseTrigger.configAsAny(),
-      adapt: (rawOutput: EVMLog): DecodedLog<RewardSweptDecoded> => contract.decodeRewardSwept(rawOutput),
-    }
-  }
-
-  /**
-   * Decodes a log into RewardSwept data, preserving all log metadata.
-   */
-  decodeRewardSwept(log: EVMLog): DecodedLog<RewardSweptDecoded> {
-    const decoded = decodeEventLog({
-      abi: CREStreamExecutorABI,
-      data: bytesToHex(log.data),
-      topics: log.topics.map((t) => bytesToHex(t)) as [Hex, ...Hex[]],
-    })
-    const { data: _, ...rest } = log
-    return { ...rest, data: decoded.args as unknown as RewardSweptDecoded }
-  }
-
-  /**
    * Creates a log trigger for StreamFailed events.
    * The returned trigger's adapt method decodes the raw log into StreamFailedDecoded,
    * so the handler receives typed event data directly.
@@ -1563,77 +1325,6 @@ export class CREStreamExecutor {
     })
     const { data: _, ...rest } = log
     return { ...rest, data: decoded.args as unknown as StrikesResetDecoded }
-  }
-
-  /**
-   * Creates a log trigger for TreasuryUpdated events.
-   * The returned trigger's adapt method decodes the raw log into TreasuryUpdatedDecoded,
-   * so the handler receives typed event data directly.
-   * When multiple filters are provided, topic values are merged with OR semantics (match any).
-   */
-  logTriggerTreasuryUpdated(
-    filters?: TreasuryUpdatedTopics[],
-  ) {
-    let topics: { values: string[] }[]
-    if (!filters || filters.length === 0) {
-      const encoded = encodeEventTopics({
-        abi: CREStreamExecutorABI,
-        eventName: 'TreasuryUpdated' as const,
-      })
-      topics = encoded.map((t) => ({ values: encodeTopicValue(t) }))
-    } else if (filters.length === 1) {
-      const f = filters[0]
-      const args = {
-        previous_treasury: f.previousTreasury,
-        new_treasury: f.newTreasury,
-      }
-      const encoded = encodeEventTopics({
-        abi: CREStreamExecutorABI,
-        eventName: 'TreasuryUpdated' as const,
-        args,
-      })
-      topics = encoded.map((t) => ({ values: encodeTopicValue(t) }))
-    } else {
-      const allEncoded = filters.map((f) => {
-        const args = {
-          previous_treasury: f.previousTreasury,
-          new_treasury: f.newTreasury,
-        }
-        return encodeEventTopics({
-          abi: CREStreamExecutorABI,
-          eventName: 'TreasuryUpdated' as const,
-          args,
-        })
-      })
-      topics = allEncoded[0].map((_, i) => ({
-        values: [...new Set(allEncoded.flatMap((row) => encodeTopicValue(row[i])))],
-      }))
-    }
-    const baseTrigger = this.client.logTrigger({
-      addresses: [hexToBase64(this.address)],
-      topics,
-    })
-    const contract = this
-    return {
-      capabilityId: () => baseTrigger.capabilityId(),
-      method: () => baseTrigger.method(),
-      outputSchema: () => baseTrigger.outputSchema(),
-      configAsAny: () => baseTrigger.configAsAny(),
-      adapt: (rawOutput: EVMLog): DecodedLog<TreasuryUpdatedDecoded> => contract.decodeTreasuryUpdated(rawOutput),
-    }
-  }
-
-  /**
-   * Decodes a log into TreasuryUpdated data, preserving all log metadata.
-   */
-  decodeTreasuryUpdated(log: EVMLog): DecodedLog<TreasuryUpdatedDecoded> {
-    const decoded = decodeEventLog({
-      abi: CREStreamExecutorABI,
-      data: bytesToHex(log.data),
-      topics: log.topics.map((t) => bytesToHex(t)) as [Hex, ...Hex[]],
-    })
-    const { data: _, ...rest } = log
-    return { ...rest, data: decoded.args as unknown as TreasuryUpdatedDecoded }
   }
 }
 

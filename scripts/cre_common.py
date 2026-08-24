@@ -6,13 +6,11 @@ import hashlib
 
 import boa
 
+STREAMER_SOURCE = "contracts/DonationStreamer.vy"
 EXECUTOR_SOURCE = "contracts/evm/src/CREStreamExecutor.vy"
 
 # Must match encodeReport() in workflow/workflow.ts.
 REPORT_SCHEMA = "(uint256[])"
-
-# CREStreamExecutor.MAX_BATCH, itself DonationStreamer.N_MAX_EXECUTE.
-MAX_BATCH = 32
 
 # The names registered in workflow/workflow.yaml.
 WORKFLOW_NAME_PRODUCTION = "refuel-production"

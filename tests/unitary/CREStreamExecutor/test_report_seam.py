@@ -21,7 +21,7 @@ pytestmark = pytest.mark.skipif(shutil.which("bun") is None, reason="needs bun")
 def encode_in_typescript(cases):
     lines = []
     for stream_ids in cases:
-        entries = ", ".join(f"{{ streamId: {i}n, reward: 0n }}" for i in stream_ids)
+        entries = ", ".join(f"{i}n" for i in stream_ids)
         lines.append(f"console.log(encodeReport([{entries}]))")
     script = "import { encodeReport } from './workflow'\n" + "\n".join(lines) + "\n"
 

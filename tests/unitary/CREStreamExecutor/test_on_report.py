@@ -9,8 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 from cre_common import build_report  # noqa: E402
 
 
-def test_executes_a_due_stream_and_sweeps_the_reward(
-    executor, donation_streamer, forwarder, metadata, funded_stream, treasury, mock_pool
+def test_executes_a_due_stream(
+    executor, donation_streamer, forwarder, metadata, funded_stream, mock_pool
 ):
     report = build_report([funded_stream["id"]])
 
@@ -19,10 +19,6 @@ def test_executes_a_due_stream_and_sweeps_the_reward(
 
     assert mock_pool.last_provider() == donation_streamer.address
     assert mock_pool.last_donation() is True
-
-    assert boa.env.get_balance(treasury) == funded_stream["reward_per_period"]
-    assert boa.env.get_balance(executor.address) == 0
-    assert boa.env.get_balance(forwarder) == 0
 
     assert executor.execution_count() == 1
 
@@ -49,7 +45,7 @@ def test_a_batch_where_nothing_landed_reverts(executor, forwarder, metadata, fun
 
 
 def test_a_stale_id_alongside_a_due_one_is_tolerated(
-    executor, forwarder, metadata, funded_stream, treasury
+    executor, forwarder, metadata, funded_stream
 ):
     stream_id = funded_stream["id"]
     unknown_id = 999
@@ -58,34 +54,6 @@ def test_a_stale_id_alongside_a_due_one_is_tolerated(
         executor.onReport(metadata, build_report([unknown_id, stream_id]))
 
     assert executor.execution_count() == 1
-    assert boa.env.get_balance(treasury) == funded_stream["reward_per_period"]
-
-
-def test_rewards_park_when_no_treasury_is_set(
-    deployer, executor, forwarder, metadata, funded_stream, treasury
-):
-    with boa.env.prank(deployer):
-        executor.set_treasury(boa.eval("empty(address)"))
-
-    with boa.env.prank(forwarder):
-        executor.onReport(metadata, build_report([funded_stream["id"]]))
-
-    reward = funded_stream["reward_per_period"]
-    assert boa.env.get_balance(executor.address) == reward
-    assert boa.env.get_balance(treasury) == 0
-
-    with boa.env.prank(deployer):
-        executor.set_treasury(treasury)
-    executor.sweep()
-
-    assert boa.env.get_balance(treasury) == reward
-    assert boa.env.get_balance(executor.address) == 0
-
-
-def test_sweep_is_a_no_op_when_there_is_nothing_to_sweep(executor, treasury):
-    executor.sweep()
-
-    assert boa.env.get_balance(treasury) == 0
 
 
 @pytest.mark.parametrize("n_periods", (1, 2))
@@ -112,15 +80,11 @@ def _bad_pool(deployer, tokens, mode):
         return boa.load("tests/mocks/MockBadPool.vy", [token0.address, token1.address], mode)
 
 
-def _stream_into(
-    donation_streamer, pool, tokens, donor, amounts, reward_per_period=50, n_periods=1
-):
+def _stream_into(donation_streamer, pool, tokens, donor, amounts, n_periods=1):
     for token, amount in zip(tokens, amounts):
         token.mint(donor, amount)
         with boa.env.prank(donor):
             token.approve(donation_streamer.address, amount)
-    total = reward_per_period * n_periods
-    boa.env.set_balance(donor, boa.env.get_balance(donor) + total)
     with boa.env.prank(donor):
         return donation_streamer.create_stream(
             pool.address,
@@ -128,15 +92,13 @@ def _stream_into(
             amounts,
             10,
             n_periods,
-            reward_per_period,
-            value=total,
         )
 
 
 @pytest.mark.parametrize("mode", (0, 1))
 def test_a_reverting_pool_does_not_take_the_rest_of_the_batch(
     executor, donation_streamer, forwarder, metadata, funded_stream, deployer, tokens,
-    donor, treasury, mode
+    donor, mode
 ):
     bad = _bad_pool(deployer, tokens, mode)
     bad_id = _stream_into(donation_streamer, bad, tokens, donor, [1_000, 1_000])
@@ -146,7 +108,6 @@ def test_a_reverting_pool_does_not_take_the_rest_of_the_batch(
         executor.onReport(metadata, build_report([bad_id, good_id]))
 
     assert executor.execution_count() == 1
-    assert boa.env.get_balance(treasury) == funded_stream["reward_per_period"]
     assert donation_streamer.is_due(bad_id) is True
 
 
@@ -187,15 +148,12 @@ def test_a_stream_is_set_aside_after_three_failures(
 
     # Set aside: still due on the streamer, no longer offered to the workflow.
     assert donation_streamer.is_due(bad_id) is True
-    due_ids, _ = executor.executable_due()
+    due_ids = executor.executable_due()
     assert bad_id not in due_ids
 
 
 def test_executable_due_still_offers_a_healthy_stream(executor, funded_stream):
-    due_ids, rewards = executor.executable_due()
-
-    assert funded_stream["id"] in due_ids
-    assert len(due_ids) == len(rewards)
+    assert funded_stream["id"] in executor.executable_due()
 
 
 def test_a_set_aside_stream_is_skipped_even_if_a_report_names_it(
@@ -241,7 +199,7 @@ def test_a_success_clears_a_partial_strike_count(
 
     # Offered again once the next period comes round, rather than set aside.
     boa.env.time_travel(seconds=10)
-    due_ids, _ = executor.executable_due()
+    due_ids = executor.executable_due()
     assert stream_id in due_ids
 
 

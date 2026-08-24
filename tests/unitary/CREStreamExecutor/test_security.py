@@ -50,14 +50,13 @@ def test_a_report_from_another_workflow_name_is_rejected(
 
 
 def test_an_unconfigured_executor_rejects_every_report(
-    deployer, donation_streamer, forwarder, treasury, metadata, funded_stream
+    deployer, donation_streamer, forwarder, metadata, funded_stream
 ):
     with boa.env.prank(deployer):
         bare = boa.load(
             str(REPO_ROOT / EXECUTOR_SOURCE),
             donation_streamer.address,
             forwarder,
-            treasury,
             deployer,
         )
 
@@ -66,14 +65,13 @@ def test_an_unconfigured_executor_rejects_every_report(
 
 
 def test_a_zero_forwarder_disables_on_report(
-    deployer, donation_streamer, treasury, workflow_owner, metadata, funded_stream
+    deployer, donation_streamer, workflow_owner, metadata, funded_stream
 ):
     with boa.env.prank(deployer):
         pending = boa.load(
             str(REPO_ROOT / EXECUTOR_SOURCE),
             donation_streamer.address,
             ZERO,
-            treasury,
             deployer,
         )
         pending.set_expected_author(workflow_owner)
@@ -83,7 +81,7 @@ def test_a_zero_forwarder_disables_on_report(
 
 
 def test_configuring_the_forwarder_opens_it(
-    deployer, donation_streamer, forwarder, treasury, workflow_owner, funded_stream
+    deployer, donation_streamer, forwarder, workflow_owner, funded_stream
 ):
     metadata = build_metadata(workflow_owner=workflow_owner)
 
@@ -92,7 +90,6 @@ def test_configuring_the_forwarder_opens_it(
             str(REPO_ROOT / EXECUTOR_SOURCE),
             donation_streamer.address,
             ZERO,
-            treasury,
             deployer,
         )
         pending.set_expected_author(workflow_owner)
@@ -107,7 +104,6 @@ def test_configuring_the_forwarder_opens_it(
 @pytest.mark.parametrize(
     "method,args",
     [
-        ("set_treasury", (ZERO,)),
         ("set_forwarder_address", (ZERO,)),
         ("set_expected_author", (ZERO,)),
         ("set_expected_workflow_id", (b"\x00" * 32,)),
@@ -118,19 +114,6 @@ def test_owner_only_setters(executor, caller, method, args):
         getattr(executor, method)(*args)
 
 
-def test_sweep_can_only_reach_the_owner_set_treasury(executor, caller, treasury, funded_stream,
-                                                     forwarder, metadata):
-    with boa.env.prank(forwarder):
-        executor.onReport(metadata, build_report([funded_stream["id"]]))
-
-    balance_before = boa.env.get_balance(caller)
-    with boa.env.prank(caller):
-        executor.sweep()
-
-    assert boa.env.get_balance(caller) == balance_before
-    assert boa.env.get_balance(treasury) == funded_stream["reward_per_period"]
-
-
 def test_supports_the_ireceiver_interface(executor):
     assert executor.supportsInterface(bytes.fromhex("805f2132")) is True
     assert executor.supportsInterface(bytes.fromhex("01ffc9a7")) is True
@@ -138,7 +121,7 @@ def test_supports_the_ireceiver_interface(executor):
 
 
 def test_the_owner_comes_from_the_constructor_not_the_deployer(
-    donation_streamer, forwarder, treasury, workflow_owner
+    donation_streamer, forwarder, workflow_owner
 ):
     proxy = boa.env.generate_address()
 
@@ -147,7 +130,6 @@ def test_the_owner_comes_from_the_constructor_not_the_deployer(
             str(REPO_ROOT / EXECUTOR_SOURCE),
             donation_streamer.address,
             forwarder,
-            treasury,
             workflow_owner,
         )
 
@@ -158,12 +140,11 @@ def test_the_owner_comes_from_the_constructor_not_the_deployer(
         deployed.set_forwarder_address(forwarder)
 
 
-def test_a_zero_owner_is_rejected(donation_streamer, forwarder, treasury, deployer):
+def test_a_zero_owner_is_rejected(donation_streamer, forwarder, deployer):
     with boa.env.prank(deployer), boa.reverts("owner required"):
         boa.load(
             str(REPO_ROOT / EXECUTOR_SOURCE),
             donation_streamer.address,
             forwarder,
-            treasury,
             ZERO,
         )

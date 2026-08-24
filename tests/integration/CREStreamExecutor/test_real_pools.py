@@ -1,5 +1,5 @@
 """The CRE path against real pools. MockPool accepts any add_liquidity and costs
-nothing, so neither the donation signature nor the 2300 gas stipend is proven there."""
+nothing, so the donation signature is not proven until a real pool is on the end."""
 
 import json
 import sys
@@ -20,6 +20,7 @@ CONFIG = REPO_ROOT / "workflow" / "config.production.json"
 
 # A measured batch must leave room for cold storage and a pricier pool than this one.
 HEADROOM = 0.7
+
 
 def test_the_pool_runs_a_donation_capable_implementation(real_pool):
     """Decided by the blueprint, offchain: rejected by name, not by a revert mid-fork."""
@@ -46,23 +47,8 @@ def test_the_pool_accepts_a_donation_add_liquidity(executor, metadata, make_stre
     assert token1.balanceOf(pool.address) > before[1]
 
 
-def test_on_report_donates_and_sweeps_the_reward(executor, metadata, make_stream, actors):
-    _, _, forwarder, treasury = actors
-    reward_per_period = 10**14
-    stream_id = make_stream(reward_per_period=reward_per_period)
-
-    with boa.env.prank(forwarder):
-        executor.onReport(metadata, build_report([stream_id]))
-
-    # The 2300 gas stipend has to reach the payable fallback, or this is zero.
-    assert boa.env.get_balance(treasury) == reward_per_period
-    assert boa.env.get_balance(executor.address) == 0
-    assert boa.env.get_balance(forwarder) == 0
-    assert executor.execution_count() == 1
-
-
 def test_a_stream_runs_to_completion_against_the_real_pool(executor, metadata, make_stream, actors):
-    _, _, forwarder, treasury = actors
+    _, _, forwarder = actors
     stream_id = make_stream(n_periods=2, period_length=120)
 
     for _ in range(2):
@@ -74,7 +60,6 @@ def test_a_stream_runs_to_completion_against_the_real_pool(executor, metadata, m
     # Storage is cleared on the final period, so the stream stops being due.
     with boa.env.prank(forwarder), boa.reverts("every execution failed"):
         executor.onReport(metadata, build_report([stream_id]))
-    assert boa.env.get_balance(treasury) > 0
 
 
 def _report_gas(executor, metadata, stream_ids):

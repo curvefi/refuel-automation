@@ -26,20 +26,12 @@ def workflow_owner():
 
 
 @pytest.fixture()
-def treasury():
-    addr = boa.env.generate_address()
-    boa.env.set_balance(addr, 0)
-    return addr
-
-
-@pytest.fixture()
-def executor(deployer, donation_streamer, forwarder, workflow_owner, treasury):
+def executor(deployer, donation_streamer, forwarder, workflow_owner):
     with boa.env.prank(deployer):
         contract = boa.load(
             str(REPO_ROOT / EXECUTOR_SOURCE),
             donation_streamer.address,
             forwarder,
-            treasury,
             deployer,
         )
         contract.set_expected_author(workflow_owner)
@@ -61,15 +53,12 @@ def funded_stream(donation_streamer, mock_pool, tokens, donor):
     amounts = [1_000, 2_000]
     period_length = 10
     n_periods = 2
-    reward_per_period = 50
-    reward_total = reward_per_period * n_periods
 
     for token, amount in zip(tokens, amounts):
         token.mint(donor, amount)
         with boa.env.prank(donor):
             token.approve(donation_streamer.address, amount)
 
-    boa.env.set_balance(donor, reward_total)
     with boa.env.prank(donor):
         stream_id = donation_streamer.create_stream(
             mock_pool.address,
@@ -77,8 +66,6 @@ def funded_stream(donation_streamer, mock_pool, tokens, donor):
             amounts,
             period_length,
             n_periods,
-            reward_per_period,
-            value=reward_total,
         )
 
-    return {"id": stream_id, "reward_per_period": reward_per_period}
+    return {"id": stream_id}
