@@ -13,7 +13,6 @@ import {
 
 const params = (over: Partial<SelectOptions> = {}): SelectOptions => ({
 	maxBatch: 8,
-	minReward: 0n,
 	...over,
 })
 
@@ -24,7 +23,6 @@ const chain = (over: Partial<ResolvedChain> = {}): ResolvedChain => ({
 	readBlockTag: 'finalized',
 	onReportGasLimit: '3000000',
 	maxBatch: 8,
-	minReward: 0n,
 	...over,
 })
 
@@ -33,70 +31,41 @@ const result = (over: Partial<ChainResult> = {}): ChainResult => ({
 	due: 0,
 	submitted: 0,
 	skipped: 0,
-	reward: '0',
 	...over,
 })
 
 const reasons = (skipped: { reason: string }[]) => skipped.map((s) => s.reason)
 
 describe('selectStreams', () => {
-	it('takes every due stream, oldest id first, whatever the rewards', () => {
-		// The streamer returns newest first; a zero-reward stream must not sort last.
-		const { items, skipped } = selectStreams([2n, 1n], [0n, 10n], params())
+	it('takes every due stream, oldest id first', () => {
+		// The executor returns newest first; selection must not preserve that.
+		const { items, skipped } = selectStreams([2n, 1n], params())
 
-		expect(items).toEqual([
-			{ streamId: 1n, reward: 10n },
-			{ streamId: 2n, reward: 0n },
-		])
+		expect(items).toEqual([1n, 2n])
 		expect(skipped).toEqual([])
 	})
 
 	it('returns nothing when nothing is due', () => {
-		expect(selectStreams([], [], params())).toEqual({ items: [], skipped: [] })
+		expect(selectStreams([], params())).toEqual({ items: [], skipped: [] })
 	})
 
-	it('drops a stream under minReward', () => {
-		const { items, skipped } = selectStreams([1n, 2n], [5n, 100n], params({ minReward: 50n }))
 
-		expect(items).toEqual([{ streamId: 2n, reward: 100n }])
-		expect(reasons(skipped)).toEqual(['reward 5 under minReward 50'])
-	})
 
-	it('keeps a reward exactly at minReward', () => {
-		const { items } = selectStreams([1n], [50n], params({ minReward: 50n }))
+	it('cuts to maxBatch, dropping the newest', () => {
+		const { items, skipped } = selectStreams([1n, 2n, 3n], params({ maxBatch: 2 }))
 
-		expect(items).toEqual([{ streamId: 1n, reward: 50n }])
-	})
-
-	it('cuts to maxBatch, dropping the newest rather than the poorest', () => {
-		const { items, skipped } = selectStreams([1n, 2n, 3n], [10n, 30n, 20n], params({ maxBatch: 2 }))
-
-		expect(items).toEqual([
-			{ streamId: 1n, reward: 10n },
-			{ streamId: 2n, reward: 30n },
-		])
+		expect(items).toEqual([1n, 2n])
 		expect(reasons(skipped)).toEqual(['over maxBatch 2'])
 		// The dropped stream stays due, so the next run picks it up.
 		expect(skipped[0]?.streamId).toBe(3n)
 	})
 
-	it('cannot be jumped by naming a large reward', () => {
-		const { items } = selectStreams([9n, 1n], [10n ** 18n, 0n], params({ maxBatch: 1 }))
 
-		expect(items).toEqual([{ streamId: 1n, reward: 0n }])
-	})
-
-	it('throws when the streamer returns mismatched arrays', () => {
-		expect(() => selectStreams([1n, 2n], [10n], params())).toThrow(/2 ids for 1 rewards/)
-	})
 })
 
 describe('encodeReport', () => {
 	it('encodes only stream ids, in selection order', () => {
-		const encoded = encodeReport([
-			{ streamId: 7n, reward: 999n },
-			{ streamId: 3n, reward: 1n },
-		])
+		const encoded = encodeReport([7n, 3n])
 
 		const [decoded] = decodeAbiParameters(parseAbiParameters('uint256[]'), encoded)
 		expect(decoded).toEqual([7n, 3n])
@@ -113,7 +82,6 @@ describe('resolveChain', () => {
 		schedule: '0 19 */8 * * *',
 		readBlockTag: 'finalized' as const,
 		maxBatch: 8,
-		minReward: '100',
 		onReportGasLimit: '3000000',
 		chains: [],
 	}
@@ -126,7 +94,6 @@ describe('resolveChain', () => {
 		})
 
 		expect(resolved.maxBatch).toBe(8)
-		expect(resolved.minReward).toBe(100n)
 		expect(resolved.readBlockTag).toBe('finalized')
 		expect(resolved.onReportGasLimit).toBe('3000000')
 	})
@@ -137,13 +104,11 @@ describe('resolveChain', () => {
 			streamerAddress: '0x00000000000000000000000000000000000000aa',
 			executorAddress: '0x00000000000000000000000000000000000000bb',
 			maxBatch: 4,
-			minReward: '999',
 			readBlockTag: 'latest',
 			onReportGasLimit: '1000000',
 		})
 
 		expect(resolved.maxBatch).toBe(4)
-		expect(resolved.minReward).toBe(999n)
 		expect(resolved.readBlockTag).toBe('latest')
 		expect(resolved.onReportGasLimit).toBe('1000000')
 	})

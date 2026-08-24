@@ -2,7 +2,6 @@
   "schedule": "0 19 */8 * * *",
   "readBlockTag": "finalized",
   "maxBatch": 16,
-  "minReward": "0",
   "onReportGasLimit": "3000000",
   "chains": [
     {

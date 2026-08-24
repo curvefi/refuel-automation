@@ -11,18 +11,13 @@ DEFAULT_DRPC_BASE_URL = "https://lb.drpc.org/ogrpc"
 DEFAULT_DRPC_NETWORK = "polygon"
 CONTRACT_NAME = "DonationStreamer"
 CONTRACT_PATH = "contracts/DonationStreamer.vy"
-SALT_SEED_TEXT = "DonationStreamer:v0.1.0"
+SALT_SEED_TEXT = "DonationStreamer:v0.2.0"
 CTOR_SCHEMA = ""
-
-# CONTRACT_NAME = "StreamExecutor"
-# CONTRACT_PATH = "contracts/StreamExecutor.vy"
-# SALT_SEED_TEXT = "StreamExecutor:v0.1.0"
-# CTOR_SCHEMA = ""
 
 # CONTRACT_NAME = "CREStreamExecutor"
 # CONTRACT_PATH = "contracts/evm/src/CREStreamExecutor.vy"
 # SALT_SEED_TEXT = "CREStreamExecutor:v0.1.0"
-# CTOR_SCHEMA = "(address,address,address,address)"
+# CTOR_SCHEMA = "(address,address,address)"
 
 # CREStreamExecutor deploys with a zero forwarder; it is set per chain afterwards.
 # The owner is passed explicitly: CREATE3 constructs through an ephemeral proxy, so a
@@ -58,15 +53,11 @@ def _resolve_ctor_args() -> tuple:
     if not streamer:
         raise ValueError("DONATION_STREAMER_ADDRESS is required")
 
-    treasury = os.environ.get("TREASURY_ADDRESS")
-    if not treasury:
-        raise ValueError("TREASURY_ADDRESS is required")
-
     owner = os.environ.get("OWNER_ADDRESS")
     if not owner:
         raise ValueError("OWNER_ADDRESS is required")
 
-    return (streamer, ZERO_ADDRESS, treasury, owner)
+    return (streamer, ZERO_ADDRESS, owner)
 
 
 def ctor_calldata() -> bytes:

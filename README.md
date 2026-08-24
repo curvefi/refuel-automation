@@ -40,7 +40,6 @@ Optional:
 Also required when deploying `CREStreamExecutor`:
 
 - `DONATION_STREAMER_ADDRESS` - streamer the executor drives, immutable once set
-- `TREASURY_ADDRESS` - where execution rewards are swept
 - `OWNER_ADDRESS` - owner allowed to configure the executor after deployment
 
 The owner is an argument rather than `msg.sender` because CREATE3 constructs through an ephemeral proxy: an owner taken from the caller would be that proxy, and nothing could ever be configured.
@@ -98,7 +97,7 @@ cd workflow && bun test && bun run typecheck
 
 ## CRE workflow
 
-`workflow/` holds a Chainlink CRE workflow that replaces the GitHub Actions keeper. On a cron it reads `streams_and_rewards_due()` per chain and sends the due stream ids to `CREStreamExecutor` as a signed report naming only ids. There is no keeper key: the DON signs, and the reward is swept to the treasury instead of paid to a caller.
+`workflow/` holds the Chainlink CRE workflow that executes due streams. On a cron it reads `executable_due()` per chain and sends the due stream ids to `CREStreamExecutor` as a signed report naming only ids. There is no keeper key and no bounty: the DON signs, and `DonationStreamer` pays nobody for executing.
 
 Simulate without broadcasting:
 
@@ -110,11 +109,3 @@ cre workflow simulate workflow/ --target production-settings --non-interactive -
 
 After deploying, the owner must call `set_forwarder_address` and at least one of `set_expected_author` / `set_expected_workflow_id` per chain. `CREReceiver` is strict: an executor with no workflow identity rejects every report.
 
-## github actions to execute the due refuel streams
-
-Being replaced by the CRE workflow above; still live until that has run clean in production.
-
-Needs two secrets in repo's `/settings/secrets/actions`
-
-- `ALCHEMY_RPC_API_KEY` - Alchemy API key
-- `REFUEL_PRIVATE_KEY` - Private key

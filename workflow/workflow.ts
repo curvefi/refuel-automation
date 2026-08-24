@@ -20,7 +20,6 @@ const chainSchema = z.object({
 	executorAddress: z.string(),
 	readBlockTag: z.enum(['finalized', 'latest']).optional(),
 	maxBatch: z.coerce.number().int().positive().max(32).optional(),
-	minReward: z.string().optional(),
 	onReportGasLimit: z.string().optional(),
 })
 export type ChainEntry = z.infer<typeof chainSchema>
@@ -33,8 +32,6 @@ export const configSchema = z.object({
 	// Measured at ~24k fixed + ~113k a stream, so the contract's own cap of 32 would
 	// not fit a 3,000,000 limit. See tests/integration/CREStreamExecutor.
 	maxBatch: z.coerce.number().int().positive().max(32).default(16),
-	// Skip a stream whose reward would not cover its own execution. "0" takes all.
-	minReward: z.string().default('0'),
 	onReportGasLimit: z.string(),
 	chains: z.array(chainSchema).min(1),
 })
@@ -42,7 +39,6 @@ type Config = z.infer<typeof configSchema>
 
 export type SelectOptions = {
 	maxBatch: number
-	minReward: bigint
 }
 
 export type ResolvedChain = SelectOptions & {
@@ -60,52 +56,29 @@ export const resolveChain = (config: Config, entry: ChainEntry): ResolvedChain =
 	readBlockTag: entry.readBlockTag ?? config.readBlockTag,
 	onReportGasLimit: entry.onReportGasLimit ?? config.onReportGasLimit,
 	maxBatch: entry.maxBatch ?? config.maxBatch,
-	minReward: BigInt(entry.minReward ?? config.minReward),
 })
 
-export type DueStream = { streamId: bigint; reward: bigint }
 export type Skip = { streamId: bigint; reason: string }
-export type Selection = { items: DueStream[]; skipped: Skip[] }
+export type Selection = { items: bigint[]; skipped: Skip[] }
 
 // ─── Selection ──────────────────────────────────────────────
 // The executor's view already filters; this only decides what fits in one report.
-export const selectStreams = (
-	dueIds: readonly bigint[],
-	rewards: readonly bigint[],
-	opts: SelectOptions,
-): Selection => {
-	if (dueIds.length !== rewards.length) {
-		throw new Error(`streamer returned ${dueIds.length} ids for ${rewards.length} rewards`)
-	}
-
-	const candidates: DueStream[] = []
-	const skipped: Skip[] = []
-
-	for (const [i, streamId] of dueIds.entries()) {
-		const reward = rewards[i] as bigint
-		if (reward < opts.minReward) {
-			skipped.push({ streamId, reason: `reward ${reward} under minReward ${opts.minReward}` })
-			continue
-		}
-		candidates.push({ streamId, reward })
-	}
-
-	// Oldest id first, not richest: the reward is swept to the treasury rather than paid
-	// to a keeper, so sorting by it starves zero-reward streams and sells queue position.
-	candidates.sort((a, b) => (a.streamId > b.streamId ? 1 : a.streamId < b.streamId ? -1 : 0))
-
-	const kept = candidates.slice(0, opts.maxBatch)
-	for (const dropped of candidates.slice(opts.maxBatch)) {
+export const selectStreams = (dueIds: readonly bigint[], opts: SelectOptions): Selection => {
+	// Oldest id first. There is no reward to rank by and deliberately so: the streamer
+	// pays none, so nothing can buy a place at the front of the queue.
+	const candidates = [...dueIds].sort((a, b) => (a > b ? 1 : a < b ? -1 : 0))
+	const skipped: Skip[] = candidates.slice(opts.maxBatch).map((streamId) => ({
 		// Still due, so the next tick picks it up; nothing is lost by trimming.
-		skipped.push({ streamId: dropped.streamId, reason: `over maxBatch ${opts.maxBatch}` })
-	}
+		streamId,
+		reason: `over maxBatch ${opts.maxBatch}`,
+	}))
 
-	return { items: kept, skipped }
+	return { items: candidates.slice(0, opts.maxBatch), skipped }
 }
 
 // Ids only. Amounts, pools and recipients live in DonationStreamer storage.
-export const encodeReport = (items: readonly DueStream[]): `0x${string}` =>
-	encodeAbiParameters(parseAbiParameters('uint256[] streamIds'), [items.map((i) => i.streamId)])
+export const encodeReport = (streamIds: readonly bigint[]): `0x${string}` =>
+	encodeAbiParameters(parseAbiParameters('uint256[] streamIds'), [streamIds as bigint[]])
 
 // ─── Per-chain Sweep ────────────────────────────────────────
 export type ChainResult = {
@@ -113,7 +86,6 @@ export type ChainResult = {
 	due: number
 	submitted: number
 	skipped: number
-	reward: string
 	txHash?: string
 	error?: string
 }
@@ -126,7 +98,6 @@ const sweepChain = (runtime: Runtime<Config>, chain: ResolvedChain): ChainResult
 		due: 0,
 		submitted: 0,
 		skipped: 0,
-		reward: '0',
 	}
 
 	// An unset address reads back as 0x, which viem reports as an opaque decode error.
@@ -147,7 +118,7 @@ const sweepChain = (runtime: Runtime<Config>, chain: ResolvedChain): ChainResult
 		chain.readBlockTag === 'latest' ? LATEST_BLOCK_NUMBER : LAST_FINALIZED_BLOCK_NUMBER
 
 	// The executor's view drops set-aside streams, so a broken pool costs no batch slot.
-	const [dueIds, rewards] = executor.executableDue(runtime, blockTag)
+	const dueIds = executor.executableDue(runtime, blockTag)
 	result.due = dueIds.length
 
 	runtime.log(
@@ -155,16 +126,13 @@ const sweepChain = (runtime: Runtime<Config>, chain: ResolvedChain): ChainResult
 			`read@${chain.readBlockTag}, maxBatch ${chain.maxBatch}`,
 	)
 
-	const { items, skipped } = selectStreams(dueIds, rewards, chain)
+	const { items, skipped } = selectStreams(dueIds, chain)
 	result.skipped = skipped.length
 	for (const s of skipped) {
 		runtime.log(`[${chain.chainSelectorName}] skip #${s.streamId}: ${s.reason}`)
 	}
 
 	if (items.length === 0) return result
-
-	const reward = items.reduce((sum, i) => sum + i.reward, 0n)
-	result.reward = reward.toString()
 
 	// Config sanity only now: catches an executorAddress bound to a different streamer.
 	let boundStreamer: string
@@ -185,7 +153,7 @@ const sweepChain = (runtime: Runtime<Config>, chain: ResolvedChain): ChainResult
 	const reportData = encodeReport(items)
 	runtime.log(
 		`[${chain.chainSelectorName}] executing ${items.length}: ` +
-			`${items.map((i) => `#${i.streamId}`).join(', ')} for ${reward}`,
+			`${items.map((id) => `#${id}`).join(', ')}`,
 	)
 
 	const writeResult = executor.writeReport(runtime, reportData, {
@@ -236,8 +204,7 @@ export const sweepAll = (
 				due: 0,
 				submitted: 0,
 				skipped: 0,
-				reward: '0',
-				error: message,
+						error: message,
 			})
 		}
 	}
