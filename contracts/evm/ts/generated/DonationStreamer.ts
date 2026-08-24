@@ -47,7 +47,6 @@ export type StreamCancelledDecoded = {
   donor: `0x${string}`
   pool: `0x${string}`
   amounts: readonly bigint[]
-  rewardRefund: bigint
 }
 
 
@@ -70,7 +69,6 @@ export type StreamCreatedDecoded = {
   amounts: readonly bigint[]
   period_length: bigint
   nPeriods: bigint
-  reward_per_period: bigint
 }
 
 
@@ -92,13 +90,12 @@ export type StreamExecutedDecoded = {
   pool: `0x${string}`
   periods: bigint
   amounts: readonly bigint[]
-  rewardPaid: bigint
 }
 
 
 type BlockNumberOption = typeof LAST_FINALIZED_BLOCK_NUMBER
 
-export const DonationStreamerABI = [{"name":"StreamCreated","inputs":[{"name":"stream_id","type":"uint256","indexed":false},{"name":"donor","type":"address","indexed":true},{"name":"pool","type":"address","indexed":true},{"name":"amounts","type":"uint256[2]","indexed":false},{"name":"period_length","type":"uint256","indexed":false},{"name":"n_periods","type":"uint256","indexed":false},{"name":"reward_per_period","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamExecuted","inputs":[{"name":"stream_id","type":"uint256","indexed":false},{"name":"caller","type":"address","indexed":true},{"name":"pool","type":"address","indexed":true},{"name":"periods","type":"uint256","indexed":false},{"name":"amounts","type":"uint256[2]","indexed":false},{"name":"reward_paid","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamCancelled","inputs":[{"name":"stream_id","type":"uint256","indexed":false},{"name":"donor","type":"address","indexed":true},{"name":"pool","type":"address","indexed":true},{"name":"amounts","type":"uint256[2]","indexed":false},{"name":"reward_refund","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"stateMutability":"view","type":"function","name":"is_due","inputs":[{"name":"stream_id","type":"uint256"}],"outputs":[{"name":"","type":"bool"}]},{"stateMutability":"view","type":"function","name":"streams_and_rewards_due","inputs":[],"outputs":[{"name":"","type":"uint256[]"},{"name":"","type":"uint256[]"}]},{"stateMutability":"payable","type":"function","name":"create_stream","inputs":[{"name":"pool","type":"address"},{"name":"coins","type":"address[2]"},{"name":"amounts","type":"uint256[2]"},{"name":"period_length","type":"uint256"},{"name":"n_periods","type":"uint256"},{"name":"reward_per_period","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"nonpayable","type":"function","name":"cancel_stream","inputs":[{"name":"stream_id","type":"uint256"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"execute","inputs":[{"name":"stream_id","type":"uint256"}],"outputs":[{"name":"","type":"bool"}]},{"stateMutability":"nonpayable","type":"function","name":"execute_many","inputs":[{"name":"stream_ids","type":"uint256[]"}],"outputs":[{"name":"","type":"bool[]"}]},{"stateMutability":"view","type":"function","name":"stream_count","inputs":[],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"view","type":"function","name":"streams","inputs":[{"name":"arg0","type":"uint256"}],"outputs":[{"name":"","type":"tuple","components":[{"name":"donor","type":"address"},{"name":"pool","type":"address"},{"name":"coins","type":"address[2]"},{"name":"amounts_per_period","type":"uint256[2]"},{"name":"period_length","type":"uint256"},{"name":"reward_per_period","type":"uint256"},{"name":"next_ts","type":"uint256"},{"name":"reward_remaining","type":"uint256"},{"name":"amounts_remaining","type":"uint256[2]"},{"name":"periods_remaining","type":"uint256"}]}]},{"stateMutability":"nonpayable","type":"constructor","inputs":[],"outputs":[]}] as const
+export const DonationStreamerABI = [{"name":"StreamCreated","inputs":[{"name":"stream_id","type":"uint256","indexed":false},{"name":"donor","type":"address","indexed":true},{"name":"pool","type":"address","indexed":true},{"name":"amounts","type":"uint256[2]","indexed":false},{"name":"period_length","type":"uint256","indexed":false},{"name":"n_periods","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamExecuted","inputs":[{"name":"stream_id","type":"uint256","indexed":false},{"name":"caller","type":"address","indexed":true},{"name":"pool","type":"address","indexed":true},{"name":"periods","type":"uint256","indexed":false},{"name":"amounts","type":"uint256[2]","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamCancelled","inputs":[{"name":"stream_id","type":"uint256","indexed":false},{"name":"donor","type":"address","indexed":true},{"name":"pool","type":"address","indexed":true},{"name":"amounts","type":"uint256[2]","indexed":false}],"anonymous":false,"type":"event"},{"stateMutability":"view","type":"function","name":"is_due","inputs":[{"name":"stream_id","type":"uint256"}],"outputs":[{"name":"","type":"bool"}]},{"stateMutability":"view","type":"function","name":"streams_due","inputs":[],"outputs":[{"name":"","type":"uint256[]"}]},{"stateMutability":"nonpayable","type":"function","name":"create_stream","inputs":[{"name":"pool","type":"address"},{"name":"coins","type":"address[2]"},{"name":"amounts","type":"uint256[2]"},{"name":"period_length","type":"uint256"},{"name":"n_periods","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"nonpayable","type":"function","name":"cancel_stream","inputs":[{"name":"stream_id","type":"uint256"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"execute","inputs":[{"name":"stream_id","type":"uint256"}],"outputs":[{"name":"","type":"bool"}]},{"stateMutability":"nonpayable","type":"function","name":"execute_many","inputs":[{"name":"stream_ids","type":"uint256[]"}],"outputs":[{"name":"","type":"bool[]"}]},{"stateMutability":"view","type":"function","name":"stream_count","inputs":[],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"view","type":"function","name":"streams","inputs":[{"name":"arg0","type":"uint256"}],"outputs":[{"name":"","type":"tuple","components":[{"name":"donor","type":"address"},{"name":"pool","type":"address"},{"name":"coins","type":"address[2]"},{"name":"amounts_per_period","type":"uint256[2]"},{"name":"period_length","type":"uint256"},{"name":"next_ts","type":"uint256"},{"name":"amounts_remaining","type":"uint256[2]"},{"name":"periods_remaining","type":"uint256"}]}]},{"stateMutability":"nonpayable","type":"constructor","inputs":[],"outputs":[]}] as const
 
 export class DonationStreamer {
   constructor(
@@ -158,7 +155,7 @@ export class DonationStreamer {
     runtime: Runtime<unknown>,
     arg0: bigint,
     callBlockNumber: BlockNumberOption = LAST_FINALIZED_BLOCK_NUMBER,
-  ): { donor: `0x${string}`; pool: `0x${string}`; coins: readonly `0x${string}`[]; amounts_per_period: readonly bigint[]; period_length: bigint; reward_per_period: bigint; next_ts: bigint; reward_remaining: bigint; amounts_remaining: readonly bigint[]; periods_remaining: bigint } {
+  ): { donor: `0x${string}`; pool: `0x${string}`; coins: readonly `0x${string}`[]; amounts_per_period: readonly bigint[]; period_length: bigint; next_ts: bigint; amounts_remaining: readonly bigint[]; periods_remaining: bigint } {
     const callData = encodeFunctionData({
       abi: DonationStreamerABI,
       functionName: 'streams' as const,
@@ -176,16 +173,16 @@ export class DonationStreamer {
       abi: DonationStreamerABI,
       functionName: 'streams' as const,
       data: bytesToHex(result.data),
-    }) as { donor: `0x${string}`; pool: `0x${string}`; coins: readonly `0x${string}`[]; amounts_per_period: readonly bigint[]; period_length: bigint; reward_per_period: bigint; next_ts: bigint; reward_remaining: bigint; amounts_remaining: readonly bigint[]; periods_remaining: bigint }
+    }) as { donor: `0x${string}`; pool: `0x${string}`; coins: readonly `0x${string}`[]; amounts_per_period: readonly bigint[]; period_length: bigint; next_ts: bigint; amounts_remaining: readonly bigint[]; periods_remaining: bigint }
   }
 
-  streamsAndRewardsDue(
+  streamsDue(
     runtime: Runtime<unknown>,
     callBlockNumber: BlockNumberOption = LAST_FINALIZED_BLOCK_NUMBER,
-  ): readonly [readonly bigint[], readonly bigint[]] {
+  ): readonly bigint[] {
     const callData = encodeFunctionData({
       abi: DonationStreamerABI,
-      functionName: 'streams_and_rewards_due' as const,
+      functionName: 'streams_due' as const,
     })
 
     const result = this.client
@@ -197,9 +194,9 @@ export class DonationStreamer {
 
     return decodeFunctionResult({
       abi: DonationStreamerABI,
-      functionName: 'streams_and_rewards_due' as const,
+      functionName: 'streams_due' as const,
       data: bytesToHex(result.data),
-    }) as readonly [readonly bigint[], readonly bigint[]]
+    }) as readonly bigint[]
   }
 
   writeReportFromCancelStream(
@@ -233,13 +230,12 @@ export class DonationStreamer {
     amounts: readonly [bigint, bigint],
     period_length: bigint,
     nPeriods: bigint,
-    reward_per_period: bigint,
     gasConfig?: { gasLimit?: string },
   ) {
     const callData = encodeFunctionData({
       abi: DonationStreamerABI,
       functionName: 'create_stream' as const,
-      args: [pool, coins, amounts, period_length, nPeriods, reward_per_period],
+      args: [pool, coins, amounts, period_length, nPeriods],
     })
 
     const reportResponse = runtime

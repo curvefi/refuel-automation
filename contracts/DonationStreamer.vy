@@ -3,7 +3,7 @@
 @title DonationStreamer
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2025 - all rights reserved
-@notice Permissionless donation streams that add liquidity on a schedule.
+@notice Permissionless donation streams that add liquidity on a schedule, without a keeper bounty.
 """
 
 from ethereum.ercs import IERC20
@@ -28,7 +28,6 @@ event StreamCreated:
     amounts: uint256[N_COINS]
     period_length: uint256
     n_periods: uint256
-    reward_per_period: uint256
 
 
 event StreamExecuted:
@@ -37,7 +36,6 @@ event StreamExecuted:
     pool: indexed(address)
     periods: uint256
     amounts: uint256[N_COINS]
-    reward_paid: uint256
 
 
 event StreamCancelled:
@@ -45,7 +43,6 @@ event StreamCancelled:
     donor: indexed(address)
     pool: indexed(address)
     amounts: uint256[N_COINS]
-    reward_refund: uint256
 
 
 ################ DATA ####################
@@ -56,10 +53,8 @@ struct DonationStream:
     coins: address[N_COINS]
     amounts_per_period: uint256[N_COINS]
     period_length: uint256
-    reward_per_period: uint256
     # Dynamic
     next_ts: uint256
-    reward_remaining: uint256
     amounts_remaining: uint256[N_COINS]
     periods_remaining: uint256
 
@@ -122,7 +117,7 @@ def _due_periods(stream: DonationStream) -> uint256:
 @internal
 def _execute_stream(stream_id: uint256) -> bool:
     """
-    @dev Execute a single stream if due and pay its reward.
+    @dev Execute a single stream if due.
     """
     stream: DonationStream = self.streams[stream_id]
     periods_due: uint256 = self._due_periods(stream)
@@ -147,12 +142,6 @@ def _execute_stream(stream_id: uint256) -> bool:
 
     stream.periods_remaining -= periods_due
     stream.next_ts += stream.period_length * periods_due
-
-    # Rewards are prorated per period, with final execution paying the remainder.
-    reward_paid: uint256 = stream.reward_per_period * periods_due
-    if is_final:
-        reward_paid = stream.reward_remaining
-    stream.reward_remaining -= reward_paid
 
     # Clear storage once the stream is finished.
     if is_final:
@@ -182,15 +171,12 @@ def _execute_stream(stream_id: uint256) -> bool:
                 assert balances_before[j] - balance_after == amounts_to_donate[j], "bad pool pull"
                 self._safe_approve(coins[j], pool, 0)
 
-    if reward_paid > 0:
-        send(msg.sender, reward_paid)
     log StreamExecuted(
         stream_id=stream_id,
         caller=msg.sender,
         pool=pool,
         periods=periods_due,
         amounts=amounts_to_donate,
-        reward_paid=reward_paid,
     )
 
     return True
@@ -208,39 +194,29 @@ def is_due(stream_id: uint256) -> bool:
 
 @view
 @external
-def streams_and_rewards_due(
-) -> (DynArray[uint256, N_MAX_VIEW], DynArray[uint256, N_MAX_VIEW]):
+def streams_due() -> DynArray[uint256, N_MAX_VIEW]:
     """
-    @notice Return due stream ids and rewards, newest first.
+    @notice Return due stream ids, newest first.
     @dev Not meant to be called onchain; iterates over up to N_MAX_VIEW streams starting from the newest.
     """
     due_ids: DynArray[uint256, N_MAX_VIEW] = empty(DynArray[uint256, N_MAX_VIEW])
-    rewards: DynArray[uint256, N_MAX_VIEW] = empty(DynArray[uint256, N_MAX_VIEW])
     count: uint256 = self.stream_count
     if count == 0:
-        return due_ids, rewards
+        return due_ids
 
     # Walk backward from newest to oldest, capped for view usage.
     limit: uint256 = min(count, N_MAX_VIEW)
     for i: uint256 in range(limit, bound=N_MAX_VIEW):
         stream_id: uint256 = count - 1 - i
-        stream: DonationStream = self.streams[stream_id]
-        periods_due: uint256 = self._due_periods(stream)
-        if periods_due == 0:
+        if self._due_periods(self.streams[stream_id]) == 0:
             continue
-
         due_ids.append(stream_id)
-        if periods_due == stream.periods_remaining:
-            rewards.append(stream.reward_remaining)
-        else:
-            rewards.append(stream.reward_per_period * periods_due)
 
-    return due_ids, rewards
+    return due_ids
 
 
 ############### EXTERNAL ACTIONS #########
 @external
-@payable
 @nonreentrant
 def create_stream(
     pool: address,
@@ -248,10 +224,10 @@ def create_stream(
     amounts: uint256[N_COINS],
     period_length: uint256,
     n_periods: uint256,
-    reward_per_period: uint256,
 ) -> uint256:
     """
     @notice Create a donation stream for a pool.
+    @dev Not payable: execution carries no bounty, so a donor pre-funds nothing but the tokens.
     """
     assert pool != empty(address), "pool required"
     assert n_periods > 0, "bad n_periods"
@@ -263,10 +239,6 @@ def create_stream(
         coins[0] == staticcall DonationPoolTarget(pool).coins(0)
         and coins[1] == staticcall DonationPoolTarget(pool).coins(1)
     ), "coin mismatch"
-
-    # Rewards are pre-funded for all periods; excess is refunded.
-    reward_total: uint256 = reward_per_period * n_periods
-    assert msg.value >= reward_total, "reward mismatch"
 
     # Per-period amounts are truncated; remainders donate on the final period.
     amounts_per_period: uint256[N_COINS] = empty(uint256[N_COINS])
@@ -290,16 +262,10 @@ def create_stream(
         coins=coins,
         amounts_per_period=amounts_per_period,
         period_length=period_length,
-        reward_per_period=reward_per_period,
         next_ts=block.timestamp,
-        reward_remaining=reward_total,
         amounts_remaining=amounts,
         periods_remaining=n_periods,
     )
-
-    # Refund excess message value.
-    if msg.value > reward_total:
-        send(msg.sender, msg.value - reward_total)
 
     log StreamCreated(
         stream_id=stream_id,
@@ -308,7 +274,6 @@ def create_stream(
         amounts=amounts,
         period_length=period_length,
         n_periods=n_periods,
-        reward_per_period=reward_per_period,
     )
 
     return stream_id
@@ -326,7 +291,6 @@ def cancel_stream(stream_id: uint256):
     pool: address = stream.pool
     coins: address[N_COINS] = stream.coins
     amounts_refund: uint256[N_COINS] = stream.amounts_remaining
-    reward_refund: uint256 = stream.reward_remaining
     self.streams[stream_id] = empty(DonationStream)
 
     for i: uint256 in range(N_COINS):
@@ -334,15 +298,12 @@ def cancel_stream(stream_id: uint256):
             assert extcall IERC20(coins[i]).transfer(
                 msg.sender, amounts_refund[i], default_return_value=True
             ), "refund failed"
-    if reward_refund > 0:
-        send(msg.sender, reward_refund)
 
     log StreamCancelled(
         stream_id=stream_id,
         donor=msg.sender,
         pool=pool,
         amounts=amounts_refund,
-        reward_refund=reward_refund,
     )
 
 
