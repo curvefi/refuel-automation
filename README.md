@@ -35,7 +35,7 @@ Required for `scripts/deploy_create3.py`:
 
 Optional:
 
-- `DRPC_NETWORK` to build a DRPC endpoint when `RPC_URL` is not set. Defaults to `ethereum`.
+- `DRPC_NETWORK` to build a DRPC endpoint when `RPC_URL` is not set. Required in that case; there is no default, because a deploy script must not pick a chain for you.
 
 Also required when deploying `CREStreamExecutor`:
 
