@@ -213,3 +213,35 @@ def test_only_the_owner_can_reset_strikes(executor, caller, deployer):
 
     with boa.env.prank(deployer):
         executor.reset_strikes([1])
+
+
+def test_a_batch_too_heavy_for_the_gas_limit_truncates_instead_of_reverting(
+    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor, metaregistry
+):
+    """Reverting would discard the strikes recorded so far, so the offenders never retire."""
+    burner = _bad_pool(deployer, tokens, metaregistry, 1)
+    ids = [
+        _stream_into(donation_streamer, burner, tokens, donor, [1_000, 1_000])
+        for _ in range(16)
+    ]
+
+    with boa.env.prank(forwarder):
+        executor.onReport(metadata, build_report(ids), gas=3_000_000)
+
+    struck = sum(1 for i in ids if executor.strikes(i) > 0)
+    assert 0 < struck < len(ids), f"expected a truncated batch, got {struck}/{len(ids)}"
+
+
+def test_a_batch_that_fits_is_not_truncated(
+    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor, metaregistry
+):
+    burner = _bad_pool(deployer, tokens, metaregistry, 1)
+    ids = [
+        _stream_into(donation_streamer, burner, tokens, donor, [1_000, 1_000])
+        for _ in range(4)
+    ]
+
+    with boa.env.prank(forwarder):
+        executor.onReport(metadata, build_report(ids), gas=10_000_000)
+
+    assert all(executor.strikes(i) == 1 for i in ids)

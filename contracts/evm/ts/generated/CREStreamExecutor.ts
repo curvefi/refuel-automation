@@ -31,6 +31,22 @@ const encodeTopicValue = (t: Hex | Hex[] | null): string[] => {
 
 
 /**
+ * Filter params for BatchTruncated. Only indexed fields can be used for filtering.
+ * Indexed string/bytes must be passed as keccak256 hash (Hex).
+ */
+export type BatchTruncatedTopics = {
+}
+
+/**
+ * Decoded BatchTruncated event data.
+ */
+export type BatchTruncatedDecoded = {
+  attempted: bigint
+  requested: bigint
+}
+
+
+/**
  * Filter params for CRESecurityWarning. Only indexed fields can be used for filtering.
  * Indexed string/bytes must be passed as keccak256 hash (Hex).
  */
@@ -202,7 +218,7 @@ export type StrikesResetDecoded = {
 
 type BlockNumberOption = typeof LAST_FINALIZED_BLOCK_NUMBER
 
-export const CREStreamExecutorABI = [{"name":"StreamsExecuted","inputs":[{"name":"requested","type":"uint256","indexed":false},{"name":"executed","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamFailed","inputs":[{"name":"stream_id","type":"uint256","indexed":true},{"name":"strikes","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamSetAside","inputs":[{"name":"stream_id","type":"uint256","indexed":true}],"anonymous":false,"type":"event"},{"name":"StrikesReset","inputs":[{"name":"stream_id","type":"uint256","indexed":true}],"anonymous":false,"type":"event"},{"name":"OwnershipTransferred","inputs":[{"name":"previous_owner","type":"address","indexed":true},{"name":"new_owner","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"CRESecurityWarning","inputs":[{"name":"message","type":"string","indexed":false}],"anonymous":false,"type":"event"},{"name":"ForwarderAddressUpdated","inputs":[{"name":"previous_forwarder","type":"address","indexed":true},{"name":"new_forwarder","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedAuthorUpdated","inputs":[{"name":"previous_author","type":"address","indexed":true},{"name":"new_author","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedWorkflowNameUpdated","inputs":[{"name":"previous_name","type":"bytes10","indexed":true},{"name":"new_name","type":"bytes10","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedWorkflowIdUpdated","inputs":[{"name":"previous_id","type":"bytes32","indexed":true},{"name":"new_id","type":"bytes32","indexed":true}],"anonymous":false,"type":"event"},{"stateMutability":"view","type":"function","name":"owner","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"nonpayable","type":"function","name":"transfer_ownership","inputs":[{"name":"new_owner","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"renounce_ownership","inputs":[],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_forwarder_address","inputs":[{"name":"_forwarder_address","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_author","inputs":[{"name":"_expected_author","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_workflow_name","inputs":[{"name":"_expected_workflow_name","type":"string"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_workflow_id","inputs":[{"name":"_expected_workflow_id","type":"bytes32"}],"outputs":[]},{"stateMutability":"view","type":"function","name":"supportsInterface","inputs":[{"name":"interface_id","type":"bytes4"}],"outputs":[{"name":"","type":"bool"}]},{"stateMutability":"view","type":"function","name":"forwarder_address","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"expected_author","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"expected_workflow_name","inputs":[],"outputs":[{"name":"","type":"bytes10"}]},{"stateMutability":"view","type":"function","name":"expected_workflow_id","inputs":[],"outputs":[{"name":"","type":"bytes32"}]},{"stateMutability":"nonpayable","type":"function","name":"reset_strikes","inputs":[{"name":"stream_ids","type":"uint256[]"}],"outputs":[]},{"stateMutability":"payable","type":"function","name":"onReport","inputs":[{"name":"metadata","type":"bytes"},{"name":"report","type":"bytes"}],"outputs":[]},{"stateMutability":"view","type":"function","name":"executable_due","inputs":[],"outputs":[{"name":"","type":"uint256[]"}]},{"stateMutability":"view","type":"function","name":"STREAMER","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"execution_count","inputs":[],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"view","type":"function","name":"strikes","inputs":[{"name":"arg0","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"nonpayable","type":"constructor","inputs":[{"name":"_streamer","type":"address"},{"name":"_forwarder_address","type":"address"},{"name":"_owner","type":"address"}],"outputs":[]}] as const
+export const CREStreamExecutorABI = [{"name":"StreamsExecuted","inputs":[{"name":"requested","type":"uint256","indexed":false},{"name":"executed","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamFailed","inputs":[{"name":"stream_id","type":"uint256","indexed":true},{"name":"strikes","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StreamSetAside","inputs":[{"name":"stream_id","type":"uint256","indexed":true}],"anonymous":false,"type":"event"},{"name":"BatchTruncated","inputs":[{"name":"attempted","type":"uint256","indexed":false},{"name":"requested","type":"uint256","indexed":false}],"anonymous":false,"type":"event"},{"name":"StrikesReset","inputs":[{"name":"stream_id","type":"uint256","indexed":true}],"anonymous":false,"type":"event"},{"name":"OwnershipTransferred","inputs":[{"name":"previous_owner","type":"address","indexed":true},{"name":"new_owner","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"CRESecurityWarning","inputs":[{"name":"message","type":"string","indexed":false}],"anonymous":false,"type":"event"},{"name":"ForwarderAddressUpdated","inputs":[{"name":"previous_forwarder","type":"address","indexed":true},{"name":"new_forwarder","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedAuthorUpdated","inputs":[{"name":"previous_author","type":"address","indexed":true},{"name":"new_author","type":"address","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedWorkflowNameUpdated","inputs":[{"name":"previous_name","type":"bytes10","indexed":true},{"name":"new_name","type":"bytes10","indexed":true}],"anonymous":false,"type":"event"},{"name":"ExpectedWorkflowIdUpdated","inputs":[{"name":"previous_id","type":"bytes32","indexed":true},{"name":"new_id","type":"bytes32","indexed":true}],"anonymous":false,"type":"event"},{"stateMutability":"view","type":"function","name":"owner","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"nonpayable","type":"function","name":"transfer_ownership","inputs":[{"name":"new_owner","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"renounce_ownership","inputs":[],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_forwarder_address","inputs":[{"name":"_forwarder_address","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_author","inputs":[{"name":"_expected_author","type":"address"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_workflow_name","inputs":[{"name":"_expected_workflow_name","type":"string"}],"outputs":[]},{"stateMutability":"nonpayable","type":"function","name":"set_expected_workflow_id","inputs":[{"name":"_expected_workflow_id","type":"bytes32"}],"outputs":[]},{"stateMutability":"view","type":"function","name":"supportsInterface","inputs":[{"name":"interface_id","type":"bytes4"}],"outputs":[{"name":"","type":"bool"}]},{"stateMutability":"view","type":"function","name":"forwarder_address","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"expected_author","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"expected_workflow_name","inputs":[],"outputs":[{"name":"","type":"bytes10"}]},{"stateMutability":"view","type":"function","name":"expected_workflow_id","inputs":[],"outputs":[{"name":"","type":"bytes32"}]},{"stateMutability":"nonpayable","type":"function","name":"reset_strikes","inputs":[{"name":"stream_ids","type":"uint256[]"}],"outputs":[]},{"stateMutability":"payable","type":"function","name":"onReport","inputs":[{"name":"metadata","type":"bytes"},{"name":"report","type":"bytes"}],"outputs":[]},{"stateMutability":"view","type":"function","name":"executable_due","inputs":[],"outputs":[{"name":"","type":"uint256[]"}]},{"stateMutability":"view","type":"function","name":"STREAMER","inputs":[],"outputs":[{"name":"","type":"address"}]},{"stateMutability":"view","type":"function","name":"execution_count","inputs":[],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"view","type":"function","name":"strikes","inputs":[{"name":"arg0","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},{"stateMutability":"nonpayable","type":"constructor","inputs":[{"name":"_streamer","type":"address"},{"name":"_forwarder_address","type":"address"},{"name":"_owner","type":"address"}],"outputs":[]}] as const
 
 export class CREStreamExecutor {
   constructor(
@@ -629,6 +645,73 @@ export class CREStreamExecutor {
         gasConfig,
       })
       .result()
+  }
+
+  /**
+   * Creates a log trigger for BatchTruncated events.
+   * The returned trigger's adapt method decodes the raw log into BatchTruncatedDecoded,
+   * so the handler receives typed event data directly.
+   * When multiple filters are provided, topic values are merged with OR semantics (match any).
+   */
+  logTriggerBatchTruncated(
+    filters?: BatchTruncatedTopics[],
+  ) {
+    let topics: { values: string[] }[]
+    if (!filters || filters.length === 0) {
+      const encoded = encodeEventTopics({
+        abi: CREStreamExecutorABI,
+        eventName: 'BatchTruncated' as const,
+      })
+      topics = encoded.map((t) => ({ values: encodeTopicValue(t) }))
+    } else if (filters.length === 1) {
+      const f = filters[0]
+      const args = {
+      }
+      const encoded = encodeEventTopics({
+        abi: CREStreamExecutorABI,
+        eventName: 'BatchTruncated' as const,
+        args,
+      })
+      topics = encoded.map((t) => ({ values: encodeTopicValue(t) }))
+    } else {
+      const allEncoded = filters.map((f) => {
+        const args = {
+        }
+        return encodeEventTopics({
+          abi: CREStreamExecutorABI,
+          eventName: 'BatchTruncated' as const,
+          args,
+        })
+      })
+      topics = allEncoded[0].map((_, i) => ({
+        values: [...new Set(allEncoded.flatMap((row) => encodeTopicValue(row[i])))],
+      }))
+    }
+    const baseTrigger = this.client.logTrigger({
+      addresses: [hexToBase64(this.address)],
+      topics,
+    })
+    const contract = this
+    return {
+      capabilityId: () => baseTrigger.capabilityId(),
+      method: () => baseTrigger.method(),
+      outputSchema: () => baseTrigger.outputSchema(),
+      configAsAny: () => baseTrigger.configAsAny(),
+      adapt: (rawOutput: EVMLog): DecodedLog<BatchTruncatedDecoded> => contract.decodeBatchTruncated(rawOutput),
+    }
+  }
+
+  /**
+   * Decodes a log into BatchTruncated data, preserving all log metadata.
+   */
+  decodeBatchTruncated(log: EVMLog): DecodedLog<BatchTruncatedDecoded> {
+    const decoded = decodeEventLog({
+      abi: CREStreamExecutorABI,
+      data: bytesToHex(log.data),
+      topics: log.topics.map((t) => bytesToHex(t)) as [Hex, ...Hex[]],
+    })
+    const { data: _, ...rest } = log
+    return { ...rest, data: decoded.args as unknown as BatchTruncatedDecoded }
   }
 
   /**

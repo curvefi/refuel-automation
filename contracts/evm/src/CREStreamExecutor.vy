@@ -47,6 +47,11 @@ MAX_STRIKES: constant(uint256) = 3
 # that burns gas instead. Measured cost is ~110k a stream.
 EXECUTE_GAS: constant(uint256) = 500_000
 
+# Left for the loop to finish and the strikes to be written once it stops early. Without
+# the reserve the transaction runs out mid-batch and the revert discards every strike it
+# had just recorded, so the streams that caused it are never retired.
+GAS_RESERVE: constant(uint256) = 100_000
+
 
 ############## IMMUTABLES #################
 STREAMER: public(immutable(address))
@@ -72,6 +77,11 @@ event StreamFailed:
 
 event StreamSetAside:
     stream_id: indexed(uint256)
+
+
+event BatchTruncated:
+    attempted: uint256
+    requested: uint256
 
 
 event StrikesReset:
@@ -176,8 +186,17 @@ def _execute_isolated(stream_ids: DynArray[uint256, MAX_BATCH]) -> (uint256, uin
     """
     executed: uint256 = 0
     failed: uint256 = 0
+    attempted: uint256 = 0
 
     for stream_id: uint256 in stream_ids:
+        # Stop while there is still gas to record what happened. maxBatch x EXECUTE_GAS can
+        # exceed the transaction budget, and running out would revert the whole report.
+        if msg.gas < EXECUTE_GAS + GAS_RESERVE:
+            log BatchTruncated(attempted=attempted, requested=len(stream_ids))
+            break
+
+        attempted += 1
+
         if self.strikes[stream_id] >= MAX_STRIKES:
             continue
 
