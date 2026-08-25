@@ -6,22 +6,22 @@
   "chains": [
     {
       "chainSelectorName": "ethereum-mainnet",
-      "streamerAddress": "0x2b786BB995978CC2242C567Ae62fd617b0eBC828",
+      "streamerAddress": "0x0000000000000000000000000000000000000000",
       "executorAddress": "0x0000000000000000000000000000000000000000"
     },
     {
       "chainSelectorName": "gnosis_chain-mainnet",
-      "streamerAddress": "0x2b786BB995978CC2242C567Ae62fd617b0eBC828",
+      "streamerAddress": "0x0000000000000000000000000000000000000000",
       "executorAddress": "0x0000000000000000000000000000000000000000"
     },
     {
       "chainSelectorName": "ethereum-mainnet-base-1",
-      "streamerAddress": "0x2b786BB995978CC2242C567Ae62fd617b0eBC828",
+      "streamerAddress": "0x0000000000000000000000000000000000000000",
       "executorAddress": "0x0000000000000000000000000000000000000000"
     },
     {
       "chainSelectorName": "polygon-mainnet",
-      "streamerAddress": "0x2b786BB995978CC2242C567Ae62fd617b0eBC828",
+      "streamerAddress": "0x0000000000000000000000000000000000000000",
       "executorAddress": "0x0000000000000000000000000000000000000000"
     }
   ]
