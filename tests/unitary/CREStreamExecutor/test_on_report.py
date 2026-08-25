@@ -74,10 +74,12 @@ def test_streamer_is_immutable_and_points_at_the_streamer(executor, donation_str
     assert executor.STREAMER() == donation_streamer.address
 
 
-def _bad_pool(deployer, tokens, mode):
+def _bad_pool(deployer, tokens, metaregistry, mode):
     token0, token1 = tokens
     with boa.env.prank(deployer):
-        return boa.load("tests/mocks/MockBadPool.vy", [token0.address, token1.address], mode)
+        pool = boa.load("tests/mocks/MockBadPool.vy", [token0.address, token1.address], mode)
+    metaregistry.set_registered(pool.address, True)
+    return pool
 
 
 def _stream_into(donation_streamer, pool, tokens, donor, amounts, n_periods=1):
@@ -98,9 +100,9 @@ def _stream_into(donation_streamer, pool, tokens, donor, amounts, n_periods=1):
 @pytest.mark.parametrize("mode", (0, 1))
 def test_a_reverting_pool_does_not_take_the_rest_of_the_batch(
     executor, donation_streamer, forwarder, metadata, funded_stream, deployer, tokens,
-    donor, mode
+    donor, metaregistry, mode
 ):
-    bad = _bad_pool(deployer, tokens, mode)
+    bad = _bad_pool(deployer, tokens, metaregistry, mode)
     bad_id = _stream_into(donation_streamer, bad, tokens, donor, [1_000, 1_000])
     good_id = funded_stream["id"]
 
@@ -112,10 +114,10 @@ def test_a_reverting_pool_does_not_take_the_rest_of_the_batch(
 
 
 def test_a_batch_of_only_bad_streams_records_strikes_instead_of_reverting(
-    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor
+    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor, metaregistry
 ):
     """Reverting here would roll back the strikes that retire a bad stream."""
-    bad = _bad_pool(deployer, tokens, 0)
+    bad = _bad_pool(deployer, tokens, metaregistry, 0)
     bad_id = _stream_into(donation_streamer, bad, tokens, donor, [1_000, 1_000])
 
     with boa.env.prank(forwarder):
@@ -132,12 +134,13 @@ def test_a_batch_of_only_stale_ids_still_reverts(executor, forwarder, metadata):
 
 
 def test_a_stream_is_set_aside_after_three_failures(
-    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor, mock_pool
+    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor, mock_pool,
+    metaregistry
 ):
     good_id = _stream_into(
         donation_streamer, mock_pool, tokens, donor, [4_000, 4_000], n_periods=8
     )
-    bad = _bad_pool(deployer, tokens, 0)
+    bad = _bad_pool(deployer, tokens, metaregistry, 0)
     bad_id = _stream_into(donation_streamer, bad, tokens, donor, [1_000, 1_000])
 
     for expected in (1, 2, 3):
@@ -157,12 +160,13 @@ def test_executable_due_still_offers_a_healthy_stream(executor, funded_stream):
 
 
 def test_a_set_aside_stream_is_skipped_even_if_a_report_names_it(
-    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor, mock_pool
+    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor, mock_pool,
+    metaregistry
 ):
     good_id = _stream_into(
         donation_streamer, mock_pool, tokens, donor, [4_000, 4_000], n_periods=8
     )
-    bad = _bad_pool(deployer, tokens, 0)
+    bad = _bad_pool(deployer, tokens, metaregistry, 0)
     bad_id = _stream_into(donation_streamer, bad, tokens, donor, [1_000, 1_000])
 
     for _ in range(3):
@@ -177,10 +181,10 @@ def test_a_set_aside_stream_is_skipped_even_if_a_report_names_it(
 
 
 def test_a_success_clears_a_partial_strike_count(
-    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor
+    executor, donation_streamer, forwarder, metadata, deployer, tokens, donor, metaregistry
 ):
     """A pool broken then fixed must not stay one failure from the bin."""
-    pool = _bad_pool(deployer, tokens, 0)
+    pool = _bad_pool(deployer, tokens, metaregistry, 0)
     stream_id = _stream_into(
         donation_streamer, pool, tokens, donor, [4_000, 4_000], n_periods=8
     )

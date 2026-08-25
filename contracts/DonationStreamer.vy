@@ -10,6 +10,14 @@ from ethereum.ercs import IERC20
 
 
 ############### INTERFACES #################
+interface AddressProvider:
+    def get_address(id: uint256) -> address: view
+
+
+interface MetaRegistry:
+    def is_registered(pool: address) -> bool: view
+
+
 interface DonationPoolTarget:
     def add_liquidity(
         amounts: uint256[2],
@@ -58,6 +66,11 @@ struct DonationStream:
     amounts_remaining: uint256[N_COINS]
     periods_remaining: uint256
 
+
+# Curve's AddressProviderNG, the same address on every chain it is deployed to, which is
+# why this contract still takes no constructor arguments.
+ADDRESS_PROVIDER: constant(address) = 0x5ffe7FB82894076ECB99A30D6A32e969e6e35E98
+METAREGISTRY_ID: constant(uint256) = 7
 
 N_COINS: constant(uint256) = 2
 N_MAX_EXECUTE: constant(uint256) = 32
@@ -233,6 +246,21 @@ def create_stream(
     assert n_periods > 0, "bad n_periods"
     assert period_length > 0, "bad period_length"
     assert amounts[0] > 0 or amounts[1] > 0, "zero amounts"
+
+    # A stream whose per-period amounts both truncate to zero donates nothing for its whole
+    # life while still reporting success, so it would hold a batch slot and never retire.
+    assert (
+        amounts[0] // n_periods > 0 or amounts[1] // n_periods > 0
+    ), "amounts below n_periods"
+
+    # The pool must be one Curve knows about. Without this the coins check below proves
+    # nothing: a caller can point at a contract they wrote and answer it themselves, which
+    # is what makes a spam stream free.
+    metaregistry: address = staticcall AddressProvider(ADDRESS_PROVIDER).get_address(
+        METAREGISTRY_ID
+    )
+    assert metaregistry != empty(address), "no metaregistry"
+    assert staticcall MetaRegistry(metaregistry).is_registered(pool), "pool not registered"
 
     # Ensure caller-provided coins match the pool configuration.
     assert (
