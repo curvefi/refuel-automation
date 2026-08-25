@@ -2,7 +2,7 @@ import boa
 import pytest
 
 
-pytestmark = pytest.mark.ignore_isolation
+pytestmark = [pytest.mark.fork, pytest.mark.ignore_isolation]
 
 
 def _fund_and_approve(token, owner, spender, amount):
