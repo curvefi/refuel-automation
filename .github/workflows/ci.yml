@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Fork tests hit live chains, so they run daily rather than per-push.
+    - cron: "23 6 * * *"
+
+jobs:
+  unit:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync --locked
+      - run: uv run pytest -q -m "not fork"
+
+  tenderly:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      # npm, not bun: bun's isolated layout leaves ethers' own dependencies outside the
+      # action directory, and that directory is what `tenderly actions deploy` uploads.
+      - run: npm ci
+        working-directory: tenderly/actions
+      - run: bun test
+        working-directory: tenderly
+      - run: npm run typecheck
+        working-directory: tenderly/actions
+      - run: npm run build
+        working-directory: tenderly/actions
+      # The deployed bundle is out/ plus that node_modules; if a transitive dependency is
+      # missing, every run dies at module load, which no other check would catch.
+      - name: The built action loads with only its own dependencies
+        working-directory: tenderly/actions
+        run: node -e "require('./out/keeper.js')"
+
+  fork:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync --locked
+      # Without a key every fork test skips and the job still passes, which reads as
+      # coverage it did not have.
+      - name: Both RPC settings the fork tests read are present
+        env:
+          RPC_URL: ${{ secrets.RPC_URL_ETHEREUM }}
+          ANKR_API_KEY: ${{ secrets.ANKR_API_KEY }}
+        run: test -n "$RPC_URL" && test -n "$ANKR_API_KEY"
+      - name: Fork tests against live pools
+        env:
+          # RPC_URL is what tests/integration/conftest.py reads; the real-pool suite
+          # resolves the other chains from ANKR_API_KEY.
+          RPC_URL: ${{ secrets.RPC_URL_ETHEREUM }}
+          ANKR_API_KEY: ${{ secrets.ANKR_API_KEY }}
+          DRPC_API_KEY: ${{ secrets.DRPC_API_KEY }}
+        run: uv run pytest -q -m fork -rs

@@ -1,0 +1,12 @@
+{
+  "name": "refuel-automation-tenderly",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tenderly actions build",
+    "test": "bun test actions",
+    "validate": "tenderly actions validate"
+  },
+  "license": "UNLICENSED"
+}

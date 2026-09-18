@@ -54,3 +54,7 @@ venv.bak/
 
 # Project folders
 agents/
+
+# node / bun
+node_modules/
+tenderly/actions/out/

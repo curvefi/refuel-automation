@@ -1,0 +1,85 @@
+{
+  "_comment": "Real pools the DonationStreamer donates into, plus a couple carried purely for chain coverage. Every entry is fork-tested for the donation add_liquidity signature, a full execute_many round trip, and gas against the per-stream ceiling. Add a pool by appending its address here; nothing else needs changing. status: active = has a live stream, streamed = had one, target = donations meant to move here, coverage = only to exercise another chain.",
+  "_verified": "2026-08-21. Ethereum pool read from live stream storage. Gnosis pools resolved from the Curve API (api.curve.finance/api/getPools/xdai/factory-twocrypto) with their TVL, not from stream history: completed streams are zeroed on chain and no available RPC allows the eth_getLogs range needed to recover them.",
+  "ethereum": {
+    "network": "ethereum",
+    "fork_block": 25800000,
+    "pools": [
+      {
+        "address": "0x027B40F5917FCd0eac57d7015e120096A5F92ca9",
+        "name": "crvUSD-ZCHF",
+        "status": "active",
+        "note": "carries stream 9, the only stream currently due on any chain",
+        "implementation": "twocrypto-optimized",
+        "implementationAddress": "0x04Fd6beC7D45EFA99a27D29FB94b55c56dD07223"
+      }
+    ]
+  },
+  "gnosis": {
+    "network": "gnosis",
+    "fork_block": 47840000,
+    "pools": [
+      {
+        "address": "0x0eCEC6F5276d2Ec6bB864F063D2b76393d6A1A74",
+        "name": "EURUSD-USDCe-EURe",
+        "status": "target",
+        "note": "FX pool, $172k TVL; donated by manual Safe tx today",
+        "implementation": "twocrypto-optimized",
+        "implementationAddress": "0x04Fd6beC7D45EFA99a27D29FB94b55c56dD07223"
+      },
+      {
+        "address": "0x9AF34331175e053Bcff330d7Bb7A6ea2bA53e83d",
+        "name": "EURCHF-ZCHF-EURe",
+        "status": "target",
+        "note": "FX pool, $49k TVL",
+        "implementation": "twocrypto-optimized",
+        "implementationAddress": "0x04Fd6beC7D45EFA99a27D29FB94b55c56dD07223"
+      },
+      {
+        "address": "0xfb8b95Fb2296a0Ad4b6b1419fdAA5AA5F13e4009",
+        "name": "BRLUSD-BRLA-USDCe",
+        "status": "target",
+        "note": "FX pool, $31k TVL",
+        "implementation": "twocrypto-optimized",
+        "implementationAddress": "0x04Fd6beC7D45EFA99a27D29FB94b55c56dD07223"
+      },
+      {
+        "address": "0xaCDc85AFCD8B83Eb171AFFCbe29FaD204F6ae45C",
+        "name": "EURe-USDCe-test",
+        "status": "streamed",
+        "note": "the pool gnosis streams 0-4 donated into",
+        "implementation": "twocrypto-optimized",
+        "implementationAddress": "0x04Fd6beC7D45EFA99a27D29FB94b55c56dD07223"
+      }
+    ]
+  },
+  "base": {
+    "network": "base",
+    "fork_block": 50260000,
+    "pools": [
+      {
+        "address": "0x1C53971800C111a32B7889177C56E3488cfe0BE0",
+        "name": "USDC-EURC",
+        "status": "streamed",
+        "note": "the pool base streams donated into; ~$10k TVL",
+        "implementation": "(unnamed)",
+        "implementationAddress": "0x04Fd6beC7D45EFA99a27D29FB94b55c56dD07223"
+      }
+    ]
+  },
+  "polygon": {
+    "network": "polygon",
+    "fork_block": 92400000,
+    "pools": [
+      {
+        "address": "0xdCb72c163de84618417Bec9aeF7ae32B5336d70E",
+        "name": "BRZ-frxUSD",
+        "status": "coverage",
+        "note": "twocrypto, ~$376k TVL; polygon has never had a stream",
+        "implementation": "twocrypto-optimized",
+        "implementationAddress": "0x04Fd6beC7D45EFA99a27D29FB94b55c56dD07223"
+      }
+    ]
+  },
+  "_donation": "A pool can only receive a donation if its implementation exposes add_liquidity(uint256[2],uint256,address,bool). That is a property of the blueprint, published by the Curve API, so it is recorded here rather than inferred from bytecode or discovered by a reverting transaction. Vet a new pool with: uv run python scripts/pool_registry.py <chain> <address>"
+}
