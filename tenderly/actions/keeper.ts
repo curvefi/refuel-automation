@@ -72,7 +72,9 @@ export const sweep = async (config: ChainConfig, connection: Connection) => {
 	// The contract decides what is ready and in which order, rotating the head with the
 	// block, so there is nothing to page through and nothing to choose between here.
 	const ready = await retryRead('ready_streams', () => streamer.ready_streams())
-	const selected = ready.slice(0, config.maxBatch)
+	// Copied, not sliced: the contract call returns a frozen ethers Result and its slice is
+	// frozen too, while encoding the batch writes into the array it is handed.
+	const selected = Array.from(ready).slice(0, config.maxBatch)
 	if (selected.length === 0) {
 		console.log(`[${config.name}] nothing ready`)
 		return { ready: 0, submitted: 0 }
