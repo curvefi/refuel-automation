@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { Result } from 'ethers'
 import { gasBudget, sweep, type Connection } from './keeper'
 import { ethereum } from './config'
 
@@ -15,7 +16,9 @@ const connection = (options: {
 		getFeeData: async () => ({ maxFeePerGas: 1_000_000_000n, gasPrice: 1_000_000_000n }),
 	},
 	streamer: {
-		ready_streams: async () => options.ready ?? [],
+		// A real Result, as the contract returns: it is frozen and so is its slice, while
+		// encoding the batch writes into the array it is handed.
+		ready_streams: async () => Result.fromItems(options.ready ?? []) as unknown as bigint[],
 		execute_many: async (ids, overrides) => {
 			options.sent?.push({ ids, overrides: overrides as { gasLimit: bigint } })
 			return {
@@ -52,6 +55,8 @@ describe('a run', () => {
 		expect(sent.length).toBe(1)
 		expect(sent[0].ids).toEqual([4n, 5n])
 		expect(sent[0].overrides.gasLimit).toBe(gasBudget(2, 1n).gasLimit)
+		// ethers writes into this array while encoding, and a Result and its slice are frozen.
+		expect(Object.isFrozen(sent[0].ids)).toBe(false)
 	})
 
 	it('takes the contract order and sends at most one batch', async () => {
