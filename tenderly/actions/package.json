@@ -1,0 +1,17 @@
+{
+  "name": "refuel-automation-action",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tenderly/actions": "0.2.262",
+    "ethers": "6.17.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "license": "UNLICENSED"
+}

@@ -12,13 +12,21 @@ KEYCHAIN_USERNAME = "deployer"
 DEFAULT_SCRYPT_ITERATIONS = 2**21  # m2pro: 2**20 is ~2s, 2**21 is ~4s etc
 
 
-def get_keyring_key() -> bytes:
+def get_keyring_key(create: bool = False) -> bytes:
     """
-    Get or generate Fernet encryption key from keyring.
-    This key is used as an additional encryption layer.
+    Get the Fernet key from keyring, minting one only when encrypting.
+    Minting on the decrypt path would turn a lost keyring entry into what looks like a
+    bad passphrase, and store a wrong key over the gap so the real cause never surfaces.
     """
     key = keyring.get_password(KEYCHAIN_SERVICE, f"{KEYCHAIN_USERNAME}_key")
     if not key:
+        if not create:
+            print(
+                f"No Fernet key in keyring under {KEYCHAIN_SERVICE}/"
+                f"{KEYCHAIN_USERNAME}_key. This ciphertext cannot be decrypted without "
+                "it - restore the keyring entry from wherever it was backed up."
+            )
+            sys.exit(1)
         # Generate a new Fernet key and store it in keyring as is
         key = Fernet.generate_key().decode()
         keyring.set_password(KEYCHAIN_SERVICE, f"{KEYCHAIN_USERNAME}_key", key)
@@ -39,8 +47,10 @@ def get_private_key() -> bytes:
             account = Account.from_mnemonic(secret)
             print("Derived private key from mnemonic.")
             return account.key
-        except Exception as e:
-            print("Error deriving private key from mnemonic:", e)
+        except Exception:
+            # Never print the exception: eth-account interpolates the whole phrase into
+            # its message, which would undo the getpass above.
+            print("Error deriving private key from mnemonic.")
             sys.exit(1)
     else:
         # Assume it's a hexadecimal private key string
@@ -48,8 +58,8 @@ def get_private_key() -> bytes:
             secret = secret[2:]
         try:
             return bytes.fromhex(secret)
-        except Exception as e:
-            print("Error parsing private key in hex:", e)
+        except Exception:
+            print("Error parsing private key in hex.")
             sys.exit(1)
 
 
@@ -72,7 +82,7 @@ def encrypt_private_key(
     encrypted_str = json.dumps(encrypted_data, separators=(",", ":"))
 
     # Second layer: keyring-based encryption
-    keyring_key = get_keyring_key()
+    keyring_key = get_keyring_key(create=True)
     f = Fernet(keyring_key)
     final_encrypted = f.encrypt(encrypted_str.encode())
 
@@ -116,8 +126,9 @@ def decrypt_private_key(encrypted_combined: str, password: str) -> bytes:
 
         return private_key
 
-    except Exception as e:
-        print("Error decrypting the key:", e)
+    except Exception:
+        # The exception text can carry the ciphertext and the keyring payload with it.
+        print("Error decrypting the key: wrong password, or the keyring entry changed.")
         sys.exit(1)
 
 
@@ -148,9 +159,8 @@ def setup_encrypted_key(iterations: int = DEFAULT_SCRYPT_ITERATIONS) -> str:
         print(f"Decrypted account address: {account.address}")
         assert account.address == acc_pre.address
         print("\nDecryption successful! Your key is secure.")
-    except Exception as e:
+    except Exception:
         print("\nDecryption verification failed. Please ensure you remember your password!")
-        print(e)
         sys.exit(1)
 
     return encrypted
@@ -200,7 +210,9 @@ if __name__ == "__main__":
     else:
         try:
             encrypted = setup_encrypted_key()
-            print("\nAdd this to your .env file as ENCRYPTED_PRIVATE_KEY:")
+            # ENCRYPTED_PK is the name deploy_create3.py reads.
+            print("\nAdd this to your environment as ENCRYPTED_PK:")
             print(encrypted)
         except Exception as e:
             print(f"Error: {e}")
+            sys.exit(1)

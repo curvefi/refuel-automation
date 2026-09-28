@@ -8,14 +8,11 @@ from secure_key_utils import decrypt_private_key, getpass
 
 CREATE_X_ADDRESS = "0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed"
 DEFAULT_DRPC_BASE_URL = "https://lb.drpc.org/ogrpc"
-DEFAULT_DRPC_NETWORK = "polygon"
 CONTRACT_NAME = "DonationStreamer"
 CONTRACT_PATH = "contracts/DonationStreamer.vy"
-SALT_SEED_TEXT = "DonationStreamer:v0.1.0"
-
-# CONTRACT_NAME = "StreamExecutor"
-# CONTRACT_PATH = "contracts/StreamExecutor.vy"
-# SALT_SEED_TEXT = "StreamExecutor:v0.1.0"
+# v0.2.0 is taken by the bounty-free streamer on the pushed cre-workflow branch, which
+# builds different code; a salt naming two contracts is a deploy nobody can reason about.
+SALT_SEED_TEXT = "DonationStreamer:v0.3.0"
 
 
 def _guarded_salt(deployer: str, chain_id: int, salt: bytes) -> bytes:
@@ -47,7 +44,11 @@ def _resolve_rpc_url() -> str:
     if not dkey:
         raise ValueError("RPC_URL or DRPC_API_KEY is required")
 
-    network = os.environ.get("DRPC_NETWORK") or DEFAULT_DRPC_NETWORK
+    network = os.environ.get("DRPC_NETWORK")
+    if not network:
+        raise ValueError("DRPC_NETWORK is required when RPC_URL is not set")
+
+    print(f"Deploying to DRPC network: {network}")
     return f"{DEFAULT_DRPC_BASE_URL}?network={network}&dkey={dkey}"
 
 

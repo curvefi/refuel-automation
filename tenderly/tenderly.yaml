@@ -1,0 +1,34 @@
+actions:
+  curve-finance/refuel-keepers:
+    runtime: v2
+    sources: actions
+    dependencies: package.json
+    specs:
+      ethereum-keeper:
+        description: Execute due DonationStreamer streams on Ethereum
+        function: keeper:ethereum
+        trigger:
+          type: periodic
+          periodic:
+            cron: "19 */8 * * *"
+      gnosis-keeper:
+        description: Execute due DonationStreamer streams on Gnosis
+        function: keeper:gnosis
+        trigger:
+          type: periodic
+          periodic:
+            cron: "19 */8 * * *"
+      base-keeper:
+        description: Execute due DonationStreamer streams on Base
+        function: keeper:base
+        trigger:
+          type: periodic
+          periodic:
+            cron: "19 */8 * * *"
+      polygon-keeper:
+        description: Execute due DonationStreamer streams on Polygon
+        function: keeper:polygon
+        trigger:
+          type: periodic
+          periodic:
+            cron: "19 */8 * * *"
