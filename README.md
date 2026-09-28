@@ -12,7 +12,7 @@ uv sync
 
 ## Environment
 
-The deployment script reads variables from the process environment only.
+The deployment script reads `.env` in the repo root, then the process environment. An exported variable wins, so a one-off deploy can override the file without editing it.
 
 Required for `scripts/deploy_create3.py`:
 
@@ -95,9 +95,11 @@ cd .. && bun test
 
 Install the action's dependencies with `npm` from inside `tenderly/actions`, not with bun and not with `npm --prefix`. `tenderly actions deploy` uploads that directory's `node_modules` as it stands: bun's layout leaves ethers' own dependencies outside it, and `npm --prefix actions install` run from `tenderly/` adds the parent package as a `file:..` dependency, which the CLI's zip walker then follows in a loop.
 
-Before `tenderly actions deploy`, set the streamer address in `tenderly/actions/config.ts`, and add these Action Secrets to the `curve-finance/refuel-keepers` project, never committing them:
+Only the Gnosis spec is registered: `config.ts` carries a streamer address for Gnosis alone, and a spec for a chain without one would fail every run.
 
-- `ETHEREUM_RPC`, `GNOSIS_RPC`, `BASE_RPC`, `POLYGON_RPC` - RPC URL per chain
-- `KEEPER_PRIVATE_KEY` - the actor's private key, funded with gas on all four chains
+Before `tenderly actions deploy`, add these Action Secrets to the project, never committing them:
+
+- `GNOSIS_RPC` - RPC URL, one per chain that has a spec
+- `KEEPER_PRIVATE_KEY` - the actor's private key, funded with gas on each chain that has a spec
 
 The previous streamer at `0x2b786BB995978CC2242C567Ae62fd617b0eBC828` is not kept alive from here: it pays a bounty and has no `ready_streams`, so this keeper cannot drive it. Its remaining stream is left to the donor or to a third-party keeper collecting that bounty.
