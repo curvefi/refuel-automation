@@ -1,10 +1,16 @@
 import os
+from pathlib import Path
 
 import boa
 from boa.explorer import Etherscan
+from dotenv import load_dotenv
 from eth_account import Account
 from eth_utils import keccak, to_bytes, to_checksum_address
 from secure_key_utils import decrypt_private_key, getpass
+
+# The repo's own .env, whatever directory the script is run from. It does not override a
+# variable already exported, so a one-off deploy can still be driven from the shell.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 CREATE_X_ADDRESS = "0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed"
 DEFAULT_DRPC_BASE_URL = "https://lb.drpc.org/ogrpc"
