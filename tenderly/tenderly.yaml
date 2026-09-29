@@ -1,5 +1,5 @@
 actions:
-  curve-finance/refuel-keepers:
+  curve-finance/donation-streamer-keeper:
     runtime: v2
     sources: actions
     dependencies: package.json
