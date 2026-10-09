@@ -10,4 +10,11 @@ actions:
         trigger:
           type: periodic
           periodic:
-            cron: "19 */8 * * *"
+            cron: "40 */2 * * *"
+      ethereum-keeper:
+        description: Execute ready DonationStreamer streams on Ethereum
+        function: keeper:ethereum
+        trigger:
+          type: periodic
+          periodic:
+            cron: "40 */2 * * *"

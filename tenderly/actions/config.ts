@@ -6,8 +6,8 @@ export type ChainConfig = {
 }
 
 // DonationStreamer is CREATE3-deployed, so the same deployer key reaches this address on
-// every chain. Only Gnosis is live (2026-09-28); the rest stay zero until they are deployed,
-// and the action refuses to run against a zero address rather than reading an empty account.
+// every chain. Gnosis and Ethereum are live; Base and Polygon stay zero until they are
+// deployed, and the action refuses a zero address rather than reading an empty account.
 const STREAMER = '0xc33375b0bb4F0A192Bd3cBd5Ea7d53B1F9E3509E'
 const NOT_DEPLOYED = '0x0000000000000000000000000000000000000000'
 
@@ -17,7 +17,7 @@ const NOT_DEPLOYED = '0x0000000000000000000000000000000000000000'
 // from the gas limit and the chain's own fee data.
 const defaults = { streamer: NOT_DEPLOYED, maxBatch: 16 }
 
-export const ethereum: ChainConfig = { ...defaults, name: 'ethereum', rpcSecret: 'ETHEREUM_RPC' }
+export const ethereum: ChainConfig = { ...defaults, name: 'ethereum', rpcSecret: 'ETHEREUM_RPC', streamer: STREAMER }
 export const gnosis: ChainConfig = { ...defaults, name: 'gnosis', rpcSecret: 'GNOSIS_RPC', streamer: STREAMER }
 export const base: ChainConfig = { ...defaults, name: 'base', rpcSecret: 'BASE_RPC' }
 export const polygon: ChainConfig = { ...defaults, name: 'polygon', rpcSecret: 'POLYGON_RPC' }
