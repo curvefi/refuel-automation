@@ -21,6 +21,10 @@ const GAS_FIXED = 150_000n
 // Runs need to keep going, so the key must cover more than the batch in flight.
 const RUNS_OF_HEADROOM = 3n
 
+// A quiet chain answers eth_maxPriorityFeePerGas with zero and ethers sends what it is told;
+// the batch then sits unmined, the run times out, and the next one queues another behind it.
+const MIN_PRIORITY_FEE = 1_000_000_000n
+
 // Tenderly kills a run at 30s. A batch not mined by then fails the run rather than passing
 // as a success: unmined is exactly the silent stall this keeper exists to catch.
 const RECEIPT_TIMEOUT_MS = 20_000
@@ -54,10 +58,29 @@ const retryRead = async <T>(label: string, call: () => Promise<T>): Promise<T> =
 	throw new Error(`${label} failed three times: ${(lastError as { code?: string })?.code ?? 'unknown error'}`)
 }
 
+// The fee a batch is sent with, never below the floor, and a cap that leaves room for the
+// base fee to climb while the transaction waits.
+export const batchFees = (quoted: {
+	maxFeePerGas: bigint | null
+	maxPriorityFeePerGas?: bigint | null
+	gasPrice: bigint | null
+}) => {
+	const suggested = quoted.maxPriorityFeePerGas ?? 0n
+	const maxPriorityFeePerGas = suggested > MIN_PRIORITY_FEE ? suggested : MIN_PRIORITY_FEE
+	const ceiling = quoted.maxFeePerGas ?? quoted.gasPrice
+	if (ceiling === null) return null
+	return { maxPriorityFeePerGas, maxFeePerGas: ceiling + maxPriorityFeePerGas }
+}
+
 export type Connection = {
 	provider: {
 		getBalance(address: string): Promise<bigint>
-		getFeeData(): Promise<{ maxFeePerGas: bigint | null; gasPrice: bigint | null }>
+		getFeeData(): Promise<{
+			maxFeePerGas: bigint | null
+			maxPriorityFeePerGas?: bigint | null
+			gasPrice: bigint | null
+		}>
+		getTransactionCount(address: string, blockTag: string): Promise<number>
 	}
 	streamer: {
 		ready_streams(): Promise<bigint[]>
@@ -80,10 +103,15 @@ export const sweep = async (config: ChainConfig, connection: Connection) => {
 		return { ready: 0, submitted: 0 }
 	}
 
-	const fees = await retryRead('getFeeData', () => provider.getFeeData())
-	const maxFeePerGas = fees.maxFeePerGas ?? fees.gasPrice
-	if (maxFeePerGas === null) throw new Error(`${config.name}: no fee data`)
-	const { gasLimit, required } = gasBudget(selected.length, maxFeePerGas)
+	const fees = batchFees(await retryRead('getFeeData', () => provider.getFeeData()))
+	if (fees === null) throw new Error(`${config.name}: no fee data`)
+	const { gasLimit, required } = gasBudget(selected.length, fees.maxFeePerGas)
+
+	// Sent at the last mined nonce, not the pending one: a predecessor left unmined by a low
+	// fee is replaced by this batch instead of having another one queued behind it.
+	const nonce = await retryRead('getTransactionCount', () =>
+		provider.getTransactionCount(address, 'latest'),
+	)
 
 	// Before sending, so a key that cannot pay says so instead of failing as an RPC error.
 	// With no bounty this key is the only thing executing streams, and an empty one stalled
@@ -96,7 +124,7 @@ export const sweep = async (config: ChainConfig, connection: Connection) => {
 		)
 	}
 
-	const transaction = await streamer.execute_many(selected, { gasLimit })
+	const transaction = await streamer.execute_many(selected, { gasLimit, nonce, ...fees })
 	console.log(
 		`[${config.name}] sent ${selected.length} of ${ready.length} ready (${selected
 			.map((id) => `#${id}`)
