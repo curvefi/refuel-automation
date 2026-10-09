@@ -41,6 +41,29 @@ def _guarded_salt(deployer: str, chain_id: int, salt: bytes) -> bytes:
     return keccak(salt)
 
 
+# A quiet chain answers eth_maxPriorityFeePerGas with zero, and boa sends what it is told;
+# a zero-tip deploy then sits in the mempool until someone replaces it. Re-running with this
+# floor replaces that transaction, because boa takes its nonce from the latest block.
+MIN_PRIORITY_FEE = int(os.environ.get("MIN_PRIORITY_FEE_WEI", 10**9))
+
+
+def _floor_priority_fee(env) -> None:
+    quoted = env.get_eip1559_fee
+
+    def with_floor():
+        base_fee, priority_fee, max_fee, chain_id = quoted()
+        if int(priority_fee, 16) >= MIN_PRIORITY_FEE:
+            return base_fee, priority_fee, max_fee, chain_id
+        return (
+            base_fee,
+            hex(MIN_PRIORITY_FEE),
+            hex(int(base_fee, 16) + MIN_PRIORITY_FEE),
+            chain_id,
+        )
+
+    env.get_eip1559_fee = with_floor
+
+
 def _resolve_rpc_url() -> str:
     rpc_url = os.environ.get("RPC_URL")
     if rpc_url:
@@ -74,6 +97,8 @@ def main() -> None:
     deploycode = boa.load_partial(CONTRACT_PATH).compiler_data.bytecode
 
     boa.set_network_env(rpc_url)
+    _floor_priority_fee(boa.env)
+    print(f"Priority fee floor: {MIN_PRIORITY_FEE / 1e9} gwei")
     boa.env.add_account(deployer)
     boa.env.eoa = deployer.address
     chain_id = boa.env.evm.patch.chain_id
