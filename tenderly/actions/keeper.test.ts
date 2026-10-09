@@ -1,19 +1,30 @@
 import { describe, expect, it } from 'bun:test'
 import { Result } from 'ethers'
-import { gasBudget, sweep, type Connection } from './keeper'
+import { batchFees, gasBudget, sweep, type Connection } from './keeper'
 import { ethereum } from './config'
 
-type Sent = { ids: bigint[]; overrides: { gasLimit: bigint } }
+type Sent = {
+	ids: bigint[]
+	overrides: { gasLimit: bigint; nonce: number; maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }
+}
 
 const connection = (options: {
 	ready?: bigint[]
 	balance?: bigint
 	sent?: Sent[]
 	wait?: () => Promise<unknown>
+	tip?: bigint | null
+	nonce?: number
 }): Connection => ({
 	provider: {
 		getBalance: async () => options.balance ?? 10n ** 20n,
-		getFeeData: async () => ({ maxFeePerGas: 1_000_000_000n, gasPrice: 1_000_000_000n }),
+		getFeeData: async () => ({
+			maxFeePerGas: 1_000_000_000n,
+			maxPriorityFeePerGas: options.tip ?? null,
+			gasPrice: 1_000_000_000n,
+		}),
+		// 'latest' is what the keeper asks for; a pending nonce would queue, not replace.
+		getTransactionCount: async (_address, blockTag) => (blockTag === 'latest' ? (options.nonce ?? 7) : 99),
 	},
 	streamer: {
 		// A real Result, as the contract returns: it is frozen and so is its slice, while
@@ -38,6 +49,20 @@ describe('the gas budget', () => {
 	it('requires the full reservation a node makes, several runs over', () => {
 		// 9.75M gas at 11 gwei is 0.107 ETH for one run, so a floor near it is not enough.
 		expect(gasBudget(16, 11_000_000_000n).required).toBe(321_750_000_000_000_000n)
+	})
+})
+
+describe('the fee a batch is sent with', () => {
+	it('lifts a zero suggestion to the floor, so the batch is not left unmined', () => {
+		const fees = batchFees({ maxFeePerGas: 1_000_000_000n, maxPriorityFeePerGas: 0n, gasPrice: null })
+		expect(fees?.maxPriorityFeePerGas).toBe(1_000_000_000n)
+		// The cap carries the tip on top of the quote, so the base fee can still climb into it.
+		expect(fees?.maxFeePerGas).toBe(2_000_000_000n)
+	})
+
+	it('keeps a suggestion that already clears the floor', () => {
+		const fees = batchFees({ maxFeePerGas: 5_000_000_000n, maxPriorityFeePerGas: 3_000_000_000n, gasPrice: null })
+		expect(fees?.maxPriorityFeePerGas).toBe(3_000_000_000n)
 	})
 })
 
@@ -73,6 +98,13 @@ describe('a run', () => {
 			/under the/,
 		)
 		expect(sent).toEqual([])
+	})
+
+	it('sends at the last mined nonce and never below the fee floor', async () => {
+		const sent: Sent[] = []
+		await sweep(ethereum, connection({ ready: [4n], sent, tip: 0n, nonce: 12 }))
+		expect(sent[0].overrides.nonce).toBe(12)
+		expect(sent[0].overrides.maxPriorityFeePerGas).toBe(1_000_000_000n)
 	})
 
 	it('fails the run when the batch reverts', async () => {
